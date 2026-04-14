@@ -10,10 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ArrowLeft, Plus, Trash2, Image, CheckCircle, RefreshCw, FileText,
-  Upload, Camera, X,
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, CheckCircle, RefreshCw, FileText, Upload, Camera, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
 
