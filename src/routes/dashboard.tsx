@@ -76,7 +76,7 @@ function DashboardPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Pendentes</CardTitle>
-                <Link to="/ocorrencias" search={{ status: 'PENDENTE' }}>
+                <Link to="/ocorrencias">
                   <Button variant="ghost" size="sm" className="gap-1 text-xs">
                     Ver todas <ArrowRight className="h-3 w-3" />
                   </Button>
