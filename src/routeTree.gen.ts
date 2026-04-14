@@ -9,14 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as TiposServicoRouteImport } from './routes/tipos-servico'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ImportarCsvRouteImport } from './routes/importar-csv'
+import { Route as EquipesRouteImport } from './routes/equipes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OcorrenciasIndexRouteImport } from './routes/ocorrencias.index'
 import { Route as OcorrenciasIdIndexRouteImport } from './routes/ocorrencias.$id.index'
 import { Route as OcorrenciasIdRelatorioRouteImport } from './routes/ocorrencias.$id.relatorio'
 
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TiposServicoRoute = TiposServicoRouteImport.update({
+  id: '/tipos-servico',
+  path: '/tipos-servico',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -25,6 +38,11 @@ const LoginRoute = LoginRouteImport.update({
 const ImportarCsvRoute = ImportarCsvRouteImport.update({
   id: '/importar-csv',
   path: '/importar-csv',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EquipesRoute = EquipesRouteImport.update({
+  id: '/equipes',
+  path: '/equipes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -56,8 +74,11 @@ const OcorrenciasIdRelatorioRoute = OcorrenciasIdRelatorioRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/equipes': typeof EquipesRoute
   '/importar-csv': typeof ImportarCsvRoute
   '/login': typeof LoginRoute
+  '/tipos-servico': typeof TiposServicoRoute
+  '/usuarios': typeof UsuariosRoute
   '/ocorrencias/': typeof OcorrenciasIndexRoute
   '/ocorrencias/$id/relatorio': typeof OcorrenciasIdRelatorioRoute
   '/ocorrencias/$id/': typeof OcorrenciasIdIndexRoute
@@ -65,8 +86,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/equipes': typeof EquipesRoute
   '/importar-csv': typeof ImportarCsvRoute
   '/login': typeof LoginRoute
+  '/tipos-servico': typeof TiposServicoRoute
+  '/usuarios': typeof UsuariosRoute
   '/ocorrencias': typeof OcorrenciasIndexRoute
   '/ocorrencias/$id/relatorio': typeof OcorrenciasIdRelatorioRoute
   '/ocorrencias/$id': typeof OcorrenciasIdIndexRoute
@@ -75,8 +99,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/equipes': typeof EquipesRoute
   '/importar-csv': typeof ImportarCsvRoute
   '/login': typeof LoginRoute
+  '/tipos-servico': typeof TiposServicoRoute
+  '/usuarios': typeof UsuariosRoute
   '/ocorrencias/': typeof OcorrenciasIndexRoute
   '/ocorrencias/$id/relatorio': typeof OcorrenciasIdRelatorioRoute
   '/ocorrencias/$id/': typeof OcorrenciasIdIndexRoute
@@ -86,8 +113,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/equipes'
     | '/importar-csv'
     | '/login'
+    | '/tipos-servico'
+    | '/usuarios'
     | '/ocorrencias/'
     | '/ocorrencias/$id/relatorio'
     | '/ocorrencias/$id/'
@@ -95,8 +125,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/equipes'
     | '/importar-csv'
     | '/login'
+    | '/tipos-servico'
+    | '/usuarios'
     | '/ocorrencias'
     | '/ocorrencias/$id/relatorio'
     | '/ocorrencias/$id'
@@ -104,8 +137,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/equipes'
     | '/importar-csv'
     | '/login'
+    | '/tipos-servico'
+    | '/usuarios'
     | '/ocorrencias/'
     | '/ocorrencias/$id/relatorio'
     | '/ocorrencias/$id/'
@@ -114,8 +150,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  EquipesRoute: typeof EquipesRoute
   ImportarCsvRoute: typeof ImportarCsvRoute
   LoginRoute: typeof LoginRoute
+  TiposServicoRoute: typeof TiposServicoRoute
+  UsuariosRoute: typeof UsuariosRoute
   OcorrenciasIndexRoute: typeof OcorrenciasIndexRoute
   OcorrenciasIdRelatorioRoute: typeof OcorrenciasIdRelatorioRoute
   OcorrenciasIdIndexRoute: typeof OcorrenciasIdIndexRoute
@@ -123,6 +162,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tipos-servico': {
+      id: '/tipos-servico'
+      path: '/tipos-servico'
+      fullPath: '/tipos-servico'
+      preLoaderRoute: typeof TiposServicoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -135,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/importar-csv'
       fullPath: '/importar-csv'
       preLoaderRoute: typeof ImportarCsvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/equipes': {
+      id: '/equipes'
+      path: '/equipes'
+      fullPath: '/equipes'
+      preLoaderRoute: typeof EquipesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -178,8 +238,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  EquipesRoute: EquipesRoute,
   ImportarCsvRoute: ImportarCsvRoute,
   LoginRoute: LoginRoute,
+  TiposServicoRoute: TiposServicoRoute,
+  UsuariosRoute: UsuariosRoute,
   OcorrenciasIndexRoute: OcorrenciasIndexRoute,
   OcorrenciasIdRelatorioRoute: OcorrenciasIdRelatorioRoute,
   OcorrenciasIdIndexRoute: OcorrenciasIdIndexRoute,
