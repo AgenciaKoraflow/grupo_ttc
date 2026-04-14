@@ -10,12 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ImportarCsvRouteImport } from './routes/importar-csv'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OcorrenciasIndexRouteImport } from './routes/ocorrencias.index'
+import { Route as OcorrenciasIdIndexRouteImport } from './routes/ocorrencias.$id.index'
+import { Route as OcorrenciasIdRelatorioRouteImport } from './routes/ocorrencias.$id.relatorio'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportarCsvRoute = ImportarCsvRouteImport.update({
+  id: '/importar-csv',
+  path: '/importar-csv',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -28,35 +37,88 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OcorrenciasIndexRoute = OcorrenciasIndexRouteImport.update({
+  id: '/ocorrencias/',
+  path: '/ocorrencias/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OcorrenciasIdIndexRoute = OcorrenciasIdIndexRouteImport.update({
+  id: '/ocorrencias/$id/',
+  path: '/ocorrencias/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OcorrenciasIdRelatorioRoute = OcorrenciasIdRelatorioRouteImport.update({
+  id: '/ocorrencias/$id/relatorio',
+  path: '/ocorrencias/$id/relatorio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/importar-csv': typeof ImportarCsvRoute
   '/login': typeof LoginRoute
+  '/ocorrencias/': typeof OcorrenciasIndexRoute
+  '/ocorrencias/$id/relatorio': typeof OcorrenciasIdRelatorioRoute
+  '/ocorrencias/$id/': typeof OcorrenciasIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/importar-csv': typeof ImportarCsvRoute
   '/login': typeof LoginRoute
+  '/ocorrencias': typeof OcorrenciasIndexRoute
+  '/ocorrencias/$id/relatorio': typeof OcorrenciasIdRelatorioRoute
+  '/ocorrencias/$id': typeof OcorrenciasIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/importar-csv': typeof ImportarCsvRoute
   '/login': typeof LoginRoute
+  '/ocorrencias/': typeof OcorrenciasIndexRoute
+  '/ocorrencias/$id/relatorio': typeof OcorrenciasIdRelatorioRoute
+  '/ocorrencias/$id/': typeof OcorrenciasIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/importar-csv'
+    | '/login'
+    | '/ocorrencias/'
+    | '/ocorrencias/$id/relatorio'
+    | '/ocorrencias/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login'
-  id: '__root__' | '/' | '/dashboard' | '/login'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/importar-csv'
+    | '/login'
+    | '/ocorrencias'
+    | '/ocorrencias/$id/relatorio'
+    | '/ocorrencias/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/importar-csv'
+    | '/login'
+    | '/ocorrencias/'
+    | '/ocorrencias/$id/relatorio'
+    | '/ocorrencias/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  ImportarCsvRoute: typeof ImportarCsvRoute
   LoginRoute: typeof LoginRoute
+  OcorrenciasIndexRoute: typeof OcorrenciasIndexRoute
+  OcorrenciasIdRelatorioRoute: typeof OcorrenciasIdRelatorioRoute
+  OcorrenciasIdIndexRoute: typeof OcorrenciasIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importar-csv': {
+      id: '/importar-csv'
+      path: '/importar-csv'
+      fullPath: '/importar-csv'
+      preLoaderRoute: typeof ImportarCsvRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -82,13 +151,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ocorrencias/': {
+      id: '/ocorrencias/'
+      path: '/ocorrencias'
+      fullPath: '/ocorrencias/'
+      preLoaderRoute: typeof OcorrenciasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ocorrencias/$id/': {
+      id: '/ocorrencias/$id/'
+      path: '/ocorrencias/$id'
+      fullPath: '/ocorrencias/$id/'
+      preLoaderRoute: typeof OcorrenciasIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ocorrencias/$id/relatorio': {
+      id: '/ocorrencias/$id/relatorio'
+      path: '/ocorrencias/$id/relatorio'
+      fullPath: '/ocorrencias/$id/relatorio'
+      preLoaderRoute: typeof OcorrenciasIdRelatorioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  ImportarCsvRoute: ImportarCsvRoute,
   LoginRoute: LoginRoute,
+  OcorrenciasIndexRoute: OcorrenciasIndexRoute,
+  OcorrenciasIdRelatorioRoute: OcorrenciasIdRelatorioRoute,
+  OcorrenciasIdIndexRoute: OcorrenciasIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

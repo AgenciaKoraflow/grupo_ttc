@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
 
-export const Route = createFileRoute("/ocorrencias/$id")({
+export const Route = createFileRoute("/ocorrencias/$id/")({
   component: OcorrenciaDetailPage,
 });
 
@@ -42,8 +42,13 @@ function OcorrenciaDetailPage() {
     addFotoFinal, deleteFotoFinal, finalizarOcorrencia, reabrirOcorrencia,
   } = useData();
   const navigate = useNavigate();
+  const [showServicoDialog, setShowServicoDialog] = useState(false);
+  const [showFinalizar, setShowFinalizar] = useState(false);
+  const [novoTipoId, setNovoTipoId] = useState('');
+  const [novoObs, setNovoObs] = useState('');
 
   const oc = ocorrencias.find(o => o.id === id);
+
   if (!oc) return (
     <AppLayout>
       <div className="p-6 text-center">
@@ -59,11 +64,6 @@ function OcorrenciaDetailPage() {
   const ctops = ocFotosFinais.filter(f => f.categoria === 'ctop');
   const isFinalizada = oc.status === 'FINALIZADA';
   const canEdit = !isFinalizada || isAdmin;
-
-  const [showServicoDialog, setShowServicoDialog] = useState(false);
-  const [showFinalizar, setShowFinalizar] = useState(false);
-  const [novoTipoId, setNovoTipoId] = useState('');
-  const [novoObs, setNovoObs] = useState('');
 
   const handleAddServico = () => {
     if (!novoTipoId) return;

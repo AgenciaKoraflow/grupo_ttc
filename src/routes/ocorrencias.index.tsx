@@ -12,7 +12,7 @@ import { Search, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
 
-export const Route = createFileRoute("/ocorrencias")({
+export const Route = createFileRoute("/ocorrencias/")({
   component: OcorrenciasPage,
 });
 
