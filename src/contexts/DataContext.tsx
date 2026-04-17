@@ -54,6 +54,21 @@ const uid = () => `gen-${++counter}`;
 
 // Função para carregar dados do Supabase
 async function loadDataFromSupabase() {
+  // TODO: Implementar carregamento do Supabase quando credenciais forem validadas
+  // Por enquanto, usar dados mock para que o app funcione
+  console.log('ℹ️ Usando dados mock (Supabase em breve)');
+
+  return {
+    equipes: mockEquipes,
+    tiposServico: mockTiposServico,
+    ocorrencias: mockOcorrencias,
+    servicos: mockServicos,
+    fotosServico: mockFotosServico,
+    fotosFinais: mockFotosFinais,
+  };
+
+  // Código original comentado para referência
+  /*
   try {
     // Carregar equipes
     const { data: equipeData, error: equipeError } = await supabase
@@ -186,6 +201,7 @@ async function loadDataFromSupabase() {
       fotosFinais: mockFotosFinais,
     };
   }
+  */
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
