@@ -1,8 +1,8 @@
 {
-  "buildCommand": "bun run build",
-  "devCommand": "bun run dev",
-  "installCommand": "bun install",
-  "framework": "remix",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "vite",
   "env": [
     {
       "key": "VITE_SUPABASE_URL",
@@ -12,8 +12,5 @@
       "key": "VITE_SUPABASE_ANON_KEY",
       "description": "Chave anônima do Supabase"
     }
-  ],
-  "buildSettings": {
-    "commandForCI": "bun run build"
-  }
+  ]
 }
