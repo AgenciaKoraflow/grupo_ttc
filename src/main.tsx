@@ -1,30 +1,86 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import './styles.css'
 
-// Versão mínima temporária para diagnosticar problema
+// App MÍNIMO - sem CSS, sem dependências externas
 function App() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [loggedIn, setLoggedIn] = React.useState(false)
+  const [error, setError] = React.useState('')
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (email && password) {
-      setLoggedIn(true)
+    setError('')
+
+    if (!email || !password) {
+      setError('Preencha email e senha')
+      return
     }
+
+    // Simular login
+    setLoggedIn(true)
+  }
+
+  const handleLogout = () => {
+    setLoggedIn(false)
+    setEmail('')
+    setPassword('')
+    setError('')
+  }
+
+  const styles = {
+    container: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      backgroundColor: '#f5f5f5',
+      fontFamily: 'system-ui, sans-serif',
+    } as React.CSSProperties,
+    card: {
+      backgroundColor: 'white',
+      padding: '32px',
+      borderRadius: '8px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+      maxWidth: '400px',
+      width: '100%',
+    } as React.CSSProperties,
+    input: {
+      width: '100%',
+      padding: '10px',
+      marginBottom: '12px',
+      border: '1px solid #ddd',
+      borderRadius: '4px',
+      boxSizing: 'border-box',
+      fontSize: '14px',
+    } as React.CSSProperties,
+    button: {
+      width: '100%',
+      padding: '10px',
+      backgroundColor: '#007bff',
+      color: 'white',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      marginTop: '12px',
+    } as React.CSSProperties,
+    error: {
+      color: '#dc3545',
+      marginBottom: '12px',
+      fontSize: '14px',
+    } as React.CSSProperties,
   }
 
   if (loggedIn) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-foreground mb-4">Dashboard</h1>
-          <p className="text-muted-foreground mb-6">Bem-vindo, {email}</p>
-          <button
-            onClick={() => setLoggedIn(false)}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
-          >
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <h1 style={{ marginTop: 0 }}>Dashboard</h1>
+          <p>Bem-vindo, <strong>{email}</strong></p>
+          <p style={{ color: '#666', fontSize: '14px' }}>App funcionando corretamente! ✓</p>
+          <button style={styles.button} onClick={handleLogout}>
             Sair
           </button>
         </div>
@@ -33,38 +89,41 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="max-w-sm w-full mx-4 space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">Login</h1>
-        <form onSubmit={handleLogin} className="space-y-4">
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={{ marginTop: 0, marginBottom: '24px' }}>GRUPO TTC - Login</h1>
+
+        {error && <div style={styles.error}>{error}</div>}
+
+        <form onSubmit={handleLogin}>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="seu@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-border rounded-lg bg-card"
+            style={styles.input}
           />
+
           <input
             type="password"
-            placeholder="Senha"
+            placeholder="senha"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-border rounded-lg bg-card"
+            style={styles.input}
           />
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold"
-          >
+
+          <button type="submit" style={styles.button}>
             Entrar
           </button>
         </form>
+
+        <p style={{ marginTop: '24px', fontSize: '12px', color: '#666', textAlign: 'center' }}>
+          Use qualquer email e senha para testar
+        </p>
       </div>
     </div>
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+const root = ReactDOM.createRoot(document.getElementById('root')!)
+root.render(<App />)
