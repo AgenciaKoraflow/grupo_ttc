@@ -1,0 +1,19 @@
+{
+  "buildCommand": "bun run build",
+  "devCommand": "bun run dev",
+  "installCommand": "bun install",
+  "framework": "remix",
+  "env": [
+    {
+      "key": "VITE_SUPABASE_URL",
+      "description": "URL do projeto Supabase"
+    },
+    {
+      "key": "VITE_SUPABASE_ANON_KEY",
+      "description": "Chave anônima do Supabase"
+    }
+  ],
+  "buildSettings": {
+    "commandForCI": "bun run build"
+  }
+}
