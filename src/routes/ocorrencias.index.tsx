@@ -48,7 +48,6 @@ const COL_MAP: Record<string, string> = {
   'NOME AT': 'nome_at',
   'NOMEAT': 'nome_at',
   'NOME_AT': 'nome_at',
-  'NOME AT': 'nome_at',
   'GERENTE ICOMON': 'gerente_icomon',
   'GERENTEICOMON': 'gerente_icomon',
   'GERENTE_ICOMON': 'gerente_icomon',
