@@ -94,16 +94,13 @@ function UsuariosPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Equipe</TableHead>
-                <TableHead className="text-center">Total</TableHead>
-                <TableHead className="text-center">Pendentes</TableHead>
-                <TableHead className="text-center">Em Andamento</TableHead>
-                <TableHead className="text-center">Finalizadas</TableHead>
+                <TableHead className="w-[80px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {profiles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhum usuário encontrado
                   </TableCell>
                 </TableRow>
@@ -135,24 +132,11 @@ function UsuariosPage() {
                       {p.equipe_id ? (
                         <span className="text-sm">{equipes.find(e => e.id === p.equipe_id)?.nome}</span>
                       ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
+                        <span className="text-muted-foreground text-sm">Sem equipe</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-center font-semibold">{s?.total ?? 0}</TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(s?.pendentes ? 'text-amber-600 font-medium' : 'text-muted-foreground')}>
-                        {s?.pendentes ?? 0}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(s?.emAndamento ? 'text-blue-600 font-medium' : 'text-muted-foreground')}>
-                        {s?.emAndamento ?? 0}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(s?.finalizadas ? 'text-green-600 font-medium' : 'text-muted-foreground')}>
-                        {s?.finalizadas ?? 0}
-                      </span>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">—</span>
                     </TableCell>
                   </TableRow>
                 );

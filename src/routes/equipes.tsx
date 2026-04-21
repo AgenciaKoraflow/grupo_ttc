@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Users, Trash2, Building2, Activity, Clock, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/equipes")({
@@ -41,11 +42,12 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function EquipesPage() {
-  const { equipes, ocorrencias, profiles, addEquipe, updateEquipe } = useData();
+  const { equipes, ocorrencias, profiles, addEquipe, updateEquipe, updateProfile } = useData();
   const [nome, setNome] = useState('');
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState('');
+  const [selectedOperadores, setSelectedOperadores] = useState<Set<string>>(new Set());
 
   const stats = useMemo(() => {
     const ativas = equipes.filter(e => e.ativa).length;
@@ -79,7 +81,17 @@ function EquipesPage() {
   const handleEdit = () => {
     if (!editId || !editNome.trim()) return;
     updateEquipe(editId, { nome: editNome.trim() });
+
+    // Atualizar operadores da equipe
+    const currentOperadores = profiles.filter(p => p.equipe_id === editId && p.role === 'operador').map(p => p.id);
+    const addedOperadores = Array.from(selectedOperadores).filter(id => !currentOperadores.includes(id));
+    const removedOperadores = currentOperadores.filter(id => !selectedOperadores.has(id));
+
+    addedOperadores.forEach(opId => updateProfile(opId, { equipe_id: editId }));
+    removedOperadores.forEach(opId => updateProfile(opId, { equipe_id: null }));
+
     setEditId(null);
+    setSelectedOperadores(new Set());
   };
 
   const getEqStats = (eqId: string) => equipeStats.find(e => e.id === eqId);
@@ -131,10 +143,6 @@ function EquipesPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-center">Operadores</TableHead>
-                <TableHead className="text-center">Total</TableHead>
-                <TableHead className="text-center">Pendentes</TableHead>
-                <TableHead className="text-center">Em Andamento</TableHead>
-                <TableHead className="text-center">Finalizadas</TableHead>
                 <TableHead className="w-[80px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -165,34 +173,51 @@ function EquipesPage() {
                         {s?.operadores ?? 0}
                       </span>
                     </TableCell>
-                    <TableCell className="text-center font-semibold">{s?.total ?? 0}</TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(s?.pendentes ? 'text-amber-600 font-medium' : 'text-muted-foreground')}>
-                        {s?.pendentes ?? 0}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(s?.emAndamento ? 'text-blue-600 font-medium' : 'text-muted-foreground')}>
-                        {s?.emAndamento ?? 0}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn(s?.finalizadas ? 'text-green-600 font-medium' : 'text-muted-foreground')}>
-                        {s?.finalizadas ?? 0}
-                      </span>
-                    </TableCell>
                     <TableCell>
                       <Dialog open={editId === eq.id} onOpenChange={(o) => { if (!o) setEditId(null); }}>
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditId(eq.id); setEditNome(eq.nome); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                            setEditId(eq.id);
+                            setEditNome(eq.nome);
+                            const operadores = new Set(profiles.filter(p => p.equipe_id === eq.id && p.role === 'operador').map(p => p.id));
+                            setSelectedOperadores(operadores);
+                          }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-h-[80vh] overflow-y-auto">
                           <DialogHeader><DialogTitle>Editar Equipe</DialogTitle></DialogHeader>
-                          <div className="space-y-3">
-                            <Label>Nome</Label>
-                            <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Nome</Label>
+                              <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Operadores</Label>
+                              <div className="space-y-2 border rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                                {profiles.filter(p => p.role === 'operador').length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">Nenhum operador cadastrado</p>
+                                ) : (
+                                  profiles.filter(p => p.role === 'operador').map(op => (
+                                    <div key={op.id} className="flex items-center gap-2">
+                                      <Checkbox
+                                        id={`op-${op.id}`}
+                                        checked={selectedOperadores.has(op.id)}
+                                        onCheckedChange={(checked) => {
+                                          const newSet = new Set(selectedOperadores);
+                                          if (checked) newSet.add(op.id);
+                                          else newSet.delete(op.id);
+                                          setSelectedOperadores(newSet);
+                                        }}
+                                      />
+                                      <Label htmlFor={`op-${op.id}`} className="font-normal cursor-pointer flex-1">
+                                        {op.nome} <span className="text-xs text-muted-foreground">({op.email})</span>
+                                      </Label>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
                           </div>
                           <DialogFooter>
                             <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>

@@ -42,6 +42,7 @@ interface DataStore {
   deleteFotoFinal: (id: string) => void;
   finalizarOcorrencia: (id: string, userId: string) => void;
   reabrirOcorrencia: (id: string, userId: string) => void;
+  updateProfile: (id: string, data: Partial<Profile>) => void;
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
   designarOperador: (ocorrenciaId: string, operadorId: string | null) => void;
   deleteOcorrencia: (id: string) => void;
@@ -679,6 +680,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  const updateProfile = useCallback((id: string, data: Partial<Profile>) => {
+    setProfiles(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+
+    // Sincronizar com Supabase
+    (async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .update(data)
+        .eq('id', id);
+
+      if (error) console.error('Erro ao atualizar perfil:', error);
+    })();
+  }, []);
+
   const vincularEquipe = useCallback((ocorrenciaId: string, equipeId: string | null) => {
     const eq = equipeId ? equipes.find(e => e.id === equipeId) : null;
 
@@ -728,7 +743,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe,
       addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
       addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
-      finalizarOcorrencia, reabrirOcorrencia, vincularEquipe, designarOperador,
+      finalizarOcorrencia, reabrirOcorrencia, updateProfile, vincularEquipe, designarOperador,
       deleteOcorrencia,
     }}>
       {children}
