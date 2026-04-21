@@ -126,6 +126,22 @@ function LogsPage() {
         });
       }
 
+      if (oc.reopened_at && oc.reopened_by) {
+        const reopenProfile = getUserProfile(oc.reopened_by);
+        entries.push({
+          id: `log-${logId++}`,
+          userId: oc.reopened_by,
+          userNome: reopenProfile.nome,
+          userRole: reopenProfile.role,
+          tipo: 'REABERTURA',
+          categoria: 'OCORRENCIA',
+          entidadeId: oc.id,
+          entidadeNome: oc.id_ocorrencia,
+          detalhes: `Ocorrência reabierta`,
+          created_at: oc.reopened_at,
+        });
+      }
+
       if (oc.equipe_id) {
         const eq = equipes.find(e => e.id === oc.equipe_id);
         if (eq) {

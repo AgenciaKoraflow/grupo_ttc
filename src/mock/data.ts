@@ -48,7 +48,7 @@ function makeOc(
     at,
     contratada,
     nome_at: null,
-    gerente_icomon: null,
+    operador_id: null,
     equipe_id: equipeId,
     equipe,
     assigned_to: null,

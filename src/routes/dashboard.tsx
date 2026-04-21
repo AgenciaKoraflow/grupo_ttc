@@ -251,7 +251,7 @@ function DashboardPage() {
 
   const allVisible = isAdmin
     ? ocorrencias
-    : ocorrencias.filter(o => o.equipe_id === user?.equipe_id);
+    : ocorrencias.filter(o => o.equipe_id === user?.equipe_id || o.assigned_to === user?.id);
 
   const filtered = useMemo(() => filterByPeriod(allVisible, period), [allVisible, period]);
 

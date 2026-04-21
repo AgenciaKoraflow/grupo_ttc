@@ -41,7 +41,7 @@ interface DataStore {
   addFotoFinal: (data: Partial<FotoOcorrenciaFinal>) => FotoOcorrenciaFinal;
   deleteFotoFinal: (id: string) => void;
   finalizarOcorrencia: (id: string, userId: string) => void;
-  reabrirOcorrencia: (id: string) => void;
+  reabrirOcorrencia: (id: string, userId: string) => void;
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
   designarOperador: (ocorrenciaId: string, operadorId: string | null) => void;
   deleteOcorrencia: (id: string) => void;
@@ -95,7 +95,7 @@ async function loadDataFromSupabase() {
         at,
         nome_at,
         contratada,
-        gerente_icomon,
+        operador_id,
         equipe_id,
         status,
         created_at,
@@ -157,7 +157,7 @@ async function loadDataFromSupabase() {
       at: oc.at,
       nome_at: oc.nome_at,
       contratada: oc.contratada,
-      gerente_icomon: oc.gerente_icomon,
+      operador_id: oc.operador_id,
       equipe_id: oc.equipe_id,
       equipe: oc.equipes as Equipe,
       assigned_to: null,
@@ -246,7 +246,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         at: item.at || null,
         contratada: item.contratada || null,
         nome_at: item.nome_at || null,
-        gerente_icomon: item.gerente_icomon || null,
+        operador_id: item.operador_id || null,
         equipe_id: null,
         assigned_to: null,
         status: 'PENDENTE',
@@ -289,7 +289,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         at: item.at || null,
         contratada: item.contratada || null,
         nome_at: item.nome_at || null,
-        gerente_icomon: item.gerente_icomon || null,
+        operador_id: item.operador_id || null,
         equipe_id: null,
         assigned_to: null,
         status: 'PENDENTE',
@@ -313,7 +313,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           at: item.at || null,
           contratada: item.contratada || null,
           nome_at: item.nome_at || null,
-          gerente_icomon: item.gerente_icomon || null,
+          operador_id: item.operador_id || null,
         });
       } else if (mode === 'skip') {
         result.skipped++;
@@ -326,7 +326,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             at: payload.at,
             contratada: payload.contratada,
             nome_at: payload.nome_at,
-            gerente_icomon: payload.gerente_icomon,
+            operador_id: payload.operador_id,
             updated_at: new Date().toISOString(),
           },
         });
@@ -342,7 +342,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             at: payload.at,
             contratada: payload.contratada,
             nome_at: payload.nome_at,
-            gerente_icomon: payload.gerente_icomon,
+            operador_id: payload.operador_id,
             updated_at: new Date().toISOString(),
           },
         });
@@ -398,7 +398,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (data.at !== undefined) updatePayload.at = data.at;
       if (data.nome_at !== undefined) updatePayload.nome_at = data.nome_at;
       if (data.contratada !== undefined) updatePayload.contratada = data.contratada;
-      if (data.gerente_icomon !== undefined) updatePayload.gerente_icomon = data.gerente_icomon;
+      if (data.operador_id !== undefined) updatePayload.operador_id = data.operador_id;
       if (data.status !== undefined) updatePayload.status = data.status;
 
       const { error } = await supabase
@@ -650,11 +650,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const reabrirOcorrencia = useCallback((id: string) => {
+  const reabrirOcorrencia = useCallback((id: string, userId: string) => {
     setOcorrencias(prev => prev.map(o =>
       o.id === id ? {
         ...o, status: 'EM_ANDAMENTO' as OcorrenciaStatus,
         finalized_at: null, finalized_by: null,
+        reopened_at: new Date().toISOString(),
+        reopened_by: userId,
         updated_at: new Date().toISOString(),
       } : o
     ));
@@ -665,6 +667,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .from('ocorrencias')
         .update({
           status: 'EM_ANDAMENTO',
+          finalized_at: null,
+          finalized_by: null,
+          reopened_at: new Date().toISOString(),
+          reopened_by: userId,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);

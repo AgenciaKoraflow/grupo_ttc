@@ -48,9 +48,12 @@ const COL_MAP: Record<string, string> = {
   'NOME AT': 'nome_at',
   'NOMEAT': 'nome_at',
   'NOME_AT': 'nome_at',
-  'GERENTE ICOMON': 'gerente_icomon',
-  'GERENTEICOMON': 'gerente_icomon',
-  'GERENTE_ICOMON': 'gerente_icomon',
+  'OPERADOR': 'operador_id',
+  'OPERADOR_ID': 'operador_id',
+  'OPERADORID': 'operador_id',
+  'GERENTE ICOMON': 'operador_id',
+  'GERENTEICOMON': 'operador_id',
+  'GERENTE_ICOMON': 'operador_id',
 };
 
 interface ParsedRow {
@@ -61,7 +64,7 @@ interface ParsedRow {
   contratada: string;
   id_ocorrencia: string;
   nome_at: string;
-  gerente_icomon: string;
+  operador_id: string;
   rowStatus: 'ok' | 'duplicate' | 'error';
   message: string;
 }
@@ -125,7 +128,7 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
       contratada: row.contratada || '',
       id_ocorrencia: id_oc,
       nome_at: row.nome_at || '',
-      gerente_icomon: row.gerente_icomon || '',
+      operador_id: row.operador_id || '',
       rowStatus,
       message,
     };
@@ -260,7 +263,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
       at: r.at || null,
       contratada: r.contratada || null,
       nome_at: r.nome_at || null,
-      gerente_icomon: r.gerente_icomon || null,
+      operador_id: r.operador_id || null,
     })), mode);
     setImportResult(result);
     setStep('done');
@@ -285,7 +288,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
           </DialogTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
             Suporta <strong>.xlsx</strong> e <strong>.csv</strong> (separador <code>;</code>)
-            · Colunas: MUNICIPIO, CABO/PRIMÁRIA, AT, CONTRATADA, ID_OCORRENCIA, NOME AT, GERENTE ICOMON
+            · Colunas: MUNICIPIO, CABO/PRIMÁRIA, AT, CONTRATADA, ID_OCORRENCIA, NOME AT, OPERADOR
           </p>
         </DialogHeader>
 
@@ -452,7 +455,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                       <span className="text-muted-foreground truncate">{row.at || '—'}</span>
                       <span className="text-muted-foreground truncate">{row.contratada || '—'}</span>
                       <span className="text-muted-foreground truncate">{row.nome_at || '—'}</span>
-                      <span className="text-muted-foreground truncate">{row.gerente_icomon || '—'}</span>
+                      <span className="text-muted-foreground truncate">{row.operador_id || '—'}</span>
                       <span>
                         {row.rowStatus === 'ok' && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -864,7 +867,7 @@ function OcorrenciasPage() {
                     )}
                   </div>
                   <div className="flex items-center justify-center"><StatusBadge status={oc.status} /></div>
-                  <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.gerente_icomon || '—'}</span>
+                  <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.operador_id || '—'}</span>
                   </div>
                 </div>
               ))

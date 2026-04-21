@@ -26,7 +26,8 @@ export interface Ocorrencia {
   at: string | null;
   contratada: string | null;
   nome_at: string | null;
-  gerente_icomon: string | null;
+  operador_id: string | null;
+  operador?: Profile;
   equipe_id: string | null;
   equipe?: Equipe;
   assigned_to: string | null;
@@ -36,6 +37,8 @@ export interface Ocorrencia {
   updated_at: string;
   finalized_at: string | null;
   finalized_by: string | null;
+  reopened_at: string | null;
+  reopened_by: string | null;
 }
 
 export interface TipoServico {
@@ -112,7 +115,7 @@ export interface CSVRow {
   CONTRATADA: string;
   ID_OCORRENCIA: string;
   'NOME AT': string;
-  'GERENTE ICOMON': string;
+  'OPERADOR': string;
 }
 
 export interface DashboardStats {

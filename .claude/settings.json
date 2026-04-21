@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit -m 'fix: Desabilitar carregamento do Supabase para permitir login:*)"
+      "Bash(git commit -m 'fix: Desabilitar carregamento do Supabase para permitir login:*)",
+      "Bash(git reset *)",
+      "Bash(sed -i '' 's/gerente_icomon/operador_id/g' src/mock/data.ts)",
+      "Bash(sed -i '' 's/gerente_icomon/operador_id/g' src/routes/*.tsx)",
+      "Read(//Users/jamescardosomartinelli/Downloads/grupo_ttc/src/routes/**)",
+      "Bash(git commit *)"
+    ],
+    "additionalDirectories": [
+      "/Users/jamescardosomartinelli/Downloads/grupo_ttc/src/routes"
     ]
   }
 }

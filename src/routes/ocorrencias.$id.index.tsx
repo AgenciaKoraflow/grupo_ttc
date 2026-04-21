@@ -259,17 +259,19 @@ function OcorrenciaDetailPage() {
             <StatusBadge status={oc.status} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/ocorrencias/$id/relatorio" params={{ id: oc.id }}>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 font-medium">
-                <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Relatório</span>
-              </Button>
-            </Link>
-            {isAdmin && isFinalizada && (
+            {isAdmin && (
+              <Link to="/ocorrencias/$id/relatorio" params={{ id: oc.id }}>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9 font-medium">
+                  <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Relatório</span>
+                </Button>
+              </Link>
+            )}
+            {isFinalizada && (isAdmin || user?.equipe_id === oc.equipe_id) && (
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1.5 h-9 font-medium"
-                onClick={() => reabrirOcorrencia(oc.id)}
+                onClick={() => reabrirOcorrencia(oc.id, user?.id || 'sistema')}
               >
                 <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Reabrir</span>
               </Button>
@@ -298,7 +300,7 @@ function OcorrenciaDetailPage() {
             <InfoItem label="AT" value={oc.at || '—'} icon={Tag} />
             <InfoItem label="Nome AT" value={oc.nome_at || '—'} icon={Tag} />
             <InfoItem label="Contratada" value={oc.contratada || '—'} icon={Building} />
-            <InfoItem label="Gerente Icomon" value={oc.gerente_icomon || '—'} icon={Users} />
+            <InfoItem label="Gerente Icomon" value={oc.operador_id || '—'} icon={Users} />
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
                 <Building className="h-3 w-3 text-muted-foreground/60" />
