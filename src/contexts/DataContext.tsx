@@ -212,7 +212,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [servicos, setServicos] = useState<ServicoOcorrencia[]>([]);
   const [fotosServico, setFotosServico] = useState<FotoServico[]>([]);
   const [fotosFinais, setFotosFinais] = useState<FotoOcorrenciaFinal[]>([]);
-  const [profiles] = useState<Profile[]>(mockProfiles);
+  const [profiles, setProfiles] = useState<Profile[]>(mockProfiles);
   const [isLoading, setIsLoading] = useState(true);
 
   // Carregar dados ao montar
@@ -255,6 +255,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
         finalized_at: null,
         finalized_by: null,
+        reopened_at: null,
+        reopened_by: null,
       });
       count++;
     }
@@ -298,6 +300,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
         finalized_at: null,
         finalized_by: null,
+        reopened_at: null,
+        reopened_by: null,
       };
 
       if (!existingOc && !isDupInBatch) {

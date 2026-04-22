@@ -171,7 +171,7 @@ function OcorrenciaDetailPage() {
   };
 
   const handleFotoFinalUploadClick = (categoria: 'retirada_fios' | 'ctop') => {
-    setFotoContext({ servicoId: '', categoria, isFinal: true });
+    setFotoContext({ servicoId: '', tipo: 'antes', categoria, isFinal: true });
     fileInputRef.current?.click();
   };
 
@@ -477,9 +477,9 @@ function OcorrenciaDetailPage() {
                                   {fotos.map(f => (
                                     <div key={f.id} className="relative group">
                                       <img
-                                        src={f.url}
+                                        src={f.url || ''}
                                         alt={`Foto ${tipo}`}
-                                        onClick={() => handleZoomFoto(f.url)}
+                                        onClick={() => f.url && handleZoomFoto(f.url)}
                                         className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow"
                                         style={{ boxShadow: '0 2px 8px oklch(0.115 0.028 252 / 0.08)' }}
                                       />
@@ -593,8 +593,8 @@ function OcorrenciaDetailPage() {
                   <p className="text-sm font-semibold text-foreground mb-3">Retirada de Fios</p>
                   <div className="flex flex-wrap gap-2">
                     {retiradaFios.map(f => (
-                      <img key={f.id} src={f.url} alt="Retirada fios"
-                        onClick={() => handleZoomFoto(f.url)}
+                      <img key={f.id} src={f.url || ''} alt="Retirada fios"
+                        onClick={() => f.url && handleZoomFoto(f.url)}
                         className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow" />
                     ))}
                   </div>
@@ -605,8 +605,8 @@ function OcorrenciaDetailPage() {
                   <p className="text-sm font-semibold text-foreground mb-3">CTOPs</p>
                   <div className="flex flex-wrap gap-2">
                     {ctops.map(f => (
-                      <img key={f.id} src={f.url} alt="CTOP"
-                        onClick={() => handleZoomFoto(f.url)}
+                      <img key={f.id} src={f.url || ''} alt="CTOP"
+                        onClick={() => f.url && handleZoomFoto(f.url)}
                         className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow" />
                     ))}
                   </div>

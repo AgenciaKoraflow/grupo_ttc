@@ -57,6 +57,8 @@ function makeOc(
     updated_at: finalizedAt || createdAt,
     finalized_at: finalizedAt,
     finalized_by: finalizedBy,
+    reopened_at: null,
+    reopened_by: null,
   };
 }
 
