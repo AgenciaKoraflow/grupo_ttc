@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLog } from "@/contexts/LogContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  History, Search, Download, Filter, User, Clock, FileText, 
-  CheckCircle, PlayCircle, AlertCircle, Edit3, Eye, Trash2, Plus, Link
+import {
+  History, Search, Download, Filter, User, Clock, FileText,
+  CheckCircle, PlayCircle, AlertCircle, Edit3, Eye, Trash2, Plus, Link, Key, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,33 +25,22 @@ const C = {
   muted: 'oklch(0.46 0.028 252)',
 };
 
-type LogTipo = 'CRIACAO' | 'ATUALIZACAO' | 'VISUALIZACAO' | 'FINALIZACAO' | 'REABERTURA' | 'VINCULACAO' | 'EXCLUSAO';
-type LogCategoria = 'OCORRENCIA' | 'SERVICO' | 'EQUIPE' | 'USUARIO' | 'TIPO_SERVICO';
-
-interface LogEntry {
-  id: string;
-  userId: string;
-  userNome: string;
-  userRole: 'admin' | 'operador' | 'sistema';
-  tipo: LogTipo;
-  categoria: LogCategoria;
-  entidadeId: string;
-  entidadeNome: string;
-  detalhes: string;
-  created_at: string;
-}
+import type { LogTipo, LogCategoria, Log } from "@/types";
 
 const TIPOS_LOG: Record<LogTipo, { label: string; color: string; icon: React.ElementType }> = {
+  LOGIN: { label: 'Login', color: 'bg-green-100 text-green-700', icon: Plus },
+  LOGOUT: { label: 'Logout', color: 'bg-amber-100 text-amber-700', icon: LogOut },
   CRIACAO: { label: 'Criação', color: 'bg-green-100 text-green-700', icon: Plus },
   ATUALIZACAO: { label: 'Atualização', color: 'bg-blue-100 text-blue-700', icon: Edit3 },
-  VISUALIZACAO: { label: 'Visualização', color: 'bg-gray-100 text-gray-700', icon: Eye },
+  EXCLUSAO: { label: 'Exclusão', color: 'bg-red-100 text-red-700', icon: Trash2 },
   FINALIZACAO: { label: 'Finalização', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   REABERTURA: { label: 'Reabertura', color: 'bg-amber-100 text-amber-700', icon: PlayCircle },
+  RESET_SENHA: { label: 'Reset de Senha', color: 'bg-orange-100 text-orange-700', icon: Key },
   VINCULACAO: { label: 'Vinculação', color: 'bg-purple-100 text-purple-700', icon: Link },
-  EXCLUSAO: { label: 'Exclusão', color: 'bg-red-100 text-red-700', icon: Trash2 },
 };
 
 const CATEGORIAS: Record<LogCategoria, string> = {
+  AUTENTICACAO: 'Autenticação',
   OCORRENCIA: 'Ocorrência',
   SERVICO: 'Serviço',
   EQUIPE: 'Equipe',
@@ -76,129 +65,19 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function LogsPage() {
-  const { user } = useAuth();
-  const { ocorrencias, equipes, profiles, tiposServico } = useData();
+  const { logs } = useLog();
   const [search, setSearch] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<LogTipo | 'TODOS'>('TODOS');
   const [filtroCategoria, setFiltroCategoria] = useState<LogCategoria | 'TODOS'>('TODOS');
   const [filtroPerfil, setFiltroPerfil] = useState<'admin' | 'operador' | 'sistema' | 'TODOS'>('TODOS');
 
-  const logs = useMemo(() => {
-    const entries: LogEntry[] = [];
-    let logId = 1;
-
-    const getUserProfile = (userId: string | null) => {
-      if (!userId || userId === 'sistema') {
-        return { nome: 'Sistema', role: 'sistema' as const };
-      }
-      const profile = profiles.find(p => p.id === userId);
-      return profile ? { nome: profile.nome, role: profile.role } : { nome: 'Desconhecido', role: 'operador' as const };
-    };
-
-    ocorrencias.forEach(oc => {
-      const creatorProfile = getUserProfile(oc.finalized_by);
-      entries.push({
-        id: `log-${logId++}`,
-        userId: oc.finalized_by || 'sistema',
-        userNome: creatorProfile.nome,
-        userRole: creatorProfile.role,
-        tipo: 'CRIACAO',
-        categoria: 'OCORRENCIA',
-        entidadeId: oc.id,
-        entidadeNome: oc.id_ocorrencia,
-        detalhes: `Ocorrência criada em ${oc.municipio}`,
-        created_at: oc.created_at,
-      });
-
-      if (oc.status === 'FINALIZADA' && oc.finalized_at) {
-        const finalProfile = getUserProfile(oc.finalized_by);
-        entries.push({
-          id: `log-${logId++}`,
-          userId: oc.finalized_by || 'sistema',
-          userNome: finalProfile.nome,
-          userRole: finalProfile.role,
-          tipo: 'FINALIZACAO',
-          categoria: 'OCORRENCIA',
-          entidadeId: oc.id,
-          entidadeNome: oc.id_ocorrencia,
-          detalhes: `Ocorrência finalizada`,
-          created_at: oc.finalized_at,
-        });
-      }
-
-      if (oc.reopened_at && oc.reopened_by) {
-        const reopenProfile = getUserProfile(oc.reopened_by);
-        entries.push({
-          id: `log-${logId++}`,
-          userId: oc.reopened_by,
-          userNome: reopenProfile.nome,
-          userRole: reopenProfile.role,
-          tipo: 'REABERTURA',
-          categoria: 'OCORRENCIA',
-          entidadeId: oc.id,
-          entidadeNome: oc.id_ocorrencia,
-          detalhes: `Ocorrência reabierta`,
-          created_at: oc.reopened_at,
-        });
-      }
-
-      if (oc.equipe_id) {
-        const eq = equipes.find(e => e.id === oc.equipe_id);
-        if (eq) {
-          entries.push({
-            id: `log-${logId++}`,
-            userId: 'sistema',
-            userNome: 'Sistema',
-            userRole: 'sistema',
-            tipo: 'VINCULACAO',
-            categoria: 'OCORRENCIA',
-            entidadeId: oc.id,
-            entidadeNome: oc.id_ocorrencia,
-            detalhes: `Vinculada à equipe ${eq.nome}`,
-            created_at: oc.updated_at,
-          });
-        }
-      }
-    });
-
-    equipes.forEach(eq => {
-      const currentUser = user || { id: 'admin', nome: 'Admin', role: 'admin' };
-      entries.push({
-        id: `log-${logId++}`,
-        userId: currentUser.id,
-        userNome: currentUser.nome,
-        userRole: currentUser.role,
-        tipo: 'CRIACAO',
-        categoria: 'EQUIPE',
-        entidadeId: eq.id,
-        entidadeNome: eq.nome,
-        detalhes: `Equipe ${eq.ativa ? 'ativada' : 'criada'}`,
-        created_at: eq.created_at,
-      });
-    });
-
-    tiposServico.forEach(ts => {
-      const currentUser = user || { id: 'admin', nome: 'Admin', role: 'admin' };
-      entries.push({
-        id: `log-${logId++}`,
-        userId: currentUser.id,
-        userNome: currentUser.nome,
-        userRole: currentUser.role,
-        tipo: 'CRIACAO',
-        categoria: 'TIPO_SERVICO',
-        entidadeId: ts.id,
-        entidadeNome: ts.nome,
-        detalhes: `Tipo de serviço criado`,
-        created_at: ts.created_at,
-      });
-    });
-
-    return entries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [ocorrencias, equipes, profiles, tiposServico, user]);
+  const sortedLogs = useMemo(() => {
+    return [...logs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [logs]);
 
   const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      const matchSearch = search === '' || 
+    return sortedLogs.filter(log => {
+      const matchSearch = search === '' ||
         log.entidadeNome.toLowerCase().includes(search.toLowerCase()) ||
         log.userNome.toLowerCase().includes(search.toLowerCase()) ||
         log.detalhes.toLowerCase().includes(search.toLowerCase());
@@ -207,17 +86,17 @@ function LogsPage() {
       const matchPerfil = filtroPerfil === 'TODOS' || log.userRole === filtroPerfil;
       return matchSearch && matchTipo && matchCategoria && matchPerfil;
     });
-  }, [logs, search, filtroTipo, filtroCategoria, filtroPerfil]);
+  }, [sortedLogs, search, filtroTipo, filtroCategoria, filtroPerfil]);
 
   const stats = useMemo(() => ({
-    total: logs.length,
-    criacoes: logs.filter(l => l.tipo === 'CRIACAO').length,
-    atualizacoes: logs.filter(l => l.tipo === 'ATUALIZACAO').length,
-    finalizacoes: logs.filter(l => l.tipo === 'FINALIZACAO').length,
-    porAdmin: logs.filter(l => l.userRole === 'admin').length,
-    porOperador: logs.filter(l => l.userRole === 'operador').length,
-    porSistema: logs.filter(l => l.userRole === 'sistema').length,
-  }), [logs]);
+    total: sortedLogs.length,
+    criacoes: sortedLogs.filter(l => l.tipo === 'CRIACAO').length,
+    atualizacoes: sortedLogs.filter(l => l.tipo === 'ATUALIZACAO').length,
+    finalizacoes: sortedLogs.filter(l => l.tipo === 'FINALIZACAO').length,
+    porAdmin: sortedLogs.filter(l => l.userRole === 'admin').length,
+    porOperador: sortedLogs.filter(l => l.userRole === 'operador').length,
+    porSistema: sortedLogs.filter(l => l.userRole === 'sistema').length,
+  }), [sortedLogs]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);

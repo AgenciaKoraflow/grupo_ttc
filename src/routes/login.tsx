@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, ArrowRight, ShieldCheck, BarChart3, Layers } from "lucide-react";
+import { ArrowRight, ShieldCheck, BarChart3, Layers } from "lucide-react";
 import { mockProfiles } from "@/mock/data";
 
 export const Route = createFileRoute("/login")({
@@ -63,15 +63,7 @@ function LoginPage() {
 
         {/* Logo */}
         <div className="flex items-center gap-3 relative z-10">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, oklch(0.58 0.225 255), oklch(0.50 0.245 272))',
-              boxShadow: '0 4px 16px oklch(0.58 0.225 255 / 0.5)',
-            }}
-          >
-            <Zap className="h-5 w-5 text-white" />
-          </div>
+          <img src="/logo-ttc.png" alt="Logo TTC" className="h-10 w-auto rounded-xl" style={{ imageRendering: 'auto' }} />
           <div>
             <p className="text-white font-bold text-lg tracking-tight leading-none">GRUPO TTC</p>
             <p className="text-white/40 text-[10px] tracking-widest uppercase mt-0.5">Field Service</p>
@@ -139,15 +131,7 @@ function LoginPage() {
 
           {/* Header mobile */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
-                boxShadow: '0 4px 12px oklch(0.50 0.225 255 / 0.40)',
-              }}
-            >
-              <Zap className="h-4.5 w-4.5 text-white" />
-            </div>
+            <img src="/logo-ttc.png" alt="Logo TTC" className="h-9 w-auto rounded-xl" style={{ imageRendering: 'auto' }} />
             <div>
               <p className="font-bold text-foreground tracking-tight leading-none">GRUPO TTC</p>
               <p className="text-muted-foreground text-[10px] tracking-widest uppercase mt-0.5">Field Service</p>

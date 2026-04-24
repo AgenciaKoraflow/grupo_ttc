@@ -1,6 +1,9 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute } from "@tanstack/react-router";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
+import { LogProvider } from "@/contexts/LogContext";
+import { ChangePasswordModal } from "@/components/ChangePasswordModal";
+import { RootContent } from "@/components/RootContent";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -37,26 +40,18 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" },
     ],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="pt-BR">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
-    </html>
-  );
-}
-
 function RootComponent() {
   return (
     <AuthProvider>
-      <DataProvider>
-        <Outlet />
-      </DataProvider>
+      <LogProvider>
+        <DataProvider>
+          <RootContent />
+        </DataProvider>
+      </LogProvider>
     </AuthProvider>
   );
 }

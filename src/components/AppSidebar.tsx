@@ -1,7 +1,7 @@
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import {
   LayoutDashboard, FileText, Users, Wrench, Building2, LogOut,
-  Zap, PanelLeftClose, PanelLeft, History,
+  PanelLeftClose, PanelLeft, History,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarGroup,
@@ -9,6 +9,7 @@ import {
   SidebarFooter, useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLog } from '@/contexts/LogContext';
 import { cn } from '@/lib/utils';
 
 const adminItems = [
@@ -29,9 +30,28 @@ export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
   const { user, isAdmin, logout } = useAuth();
+  const { addLog } = useLog();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   const items = isAdmin ? adminItems : operadorItems;
+
+  const handleLogout = () => {
+    if (user) {
+      addLog({
+        userId: user.id,
+        userNome: user.nome,
+        userRole: user.role,
+        tipo: 'LOGOUT',
+        categoria: 'AUTENTICACAO',
+        entidadeId: user.id,
+        entidadeNome: user.email,
+        detalhes: `${user.nome} fez logout`,
+      });
+    }
+    logout();
+    navigate({ to: '/login' });
+  };
 
   const initials = user?.nome
     ? user.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
@@ -47,31 +67,25 @@ export function AppSidebar() {
         }}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center justify-between gap-3 px-4 shrink-0"
+        <div className="flex flex-col items-center justify-center gap-2 px-4 py-3 shrink-0"
           style={{ borderBottom: '1px solid oklch(0.24 0.030 250)' }}
         >
-          <div
-            className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, oklch(0.58 0.225 255), oklch(0.50 0.245 272))',
-              boxShadow: '0 2px 10px oklch(0.58 0.225 255 / 0.45)',
-            }}
-          >
-            <Zap className="h-4 w-4 text-white" />
+          <div className="relative w-full flex justify-center">
+            <img src="/logo-ttc.png" alt="Logo TTC" className="h-8 w-auto rounded-lg" style={{ imageRendering: 'auto', maxWidth: '80%' }} />
+            <button
+              onClick={toggleSidebar}
+              title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              className="absolute right-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+            >
+              {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
           </div>
           {!collapsed && (
-            <div>
-              <p className="text-sm font-bold text-white tracking-tight leading-none">GRUPO TTC</p>
-              <p className="text-[10px] text-sidebar-foreground/50 mt-0.5 tracking-widest uppercase">Preventivas</p>
+            <div className="text-center">
+              <p className="text-xs font-bold text-white tracking-tight leading-tight">GRUPO TTC</p>
+              <p className="text-[9px] text-sidebar-foreground/50 tracking-widest uppercase">Preventivas</p>
             </div>
           )}
-          <button
-            onClick={toggleSidebar}
-            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-            className="h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
-          >
-            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </button>
         </div>
 
         {/* Conteúdo — usando div direto para controle total do visual */}
@@ -139,7 +153,7 @@ export function AppSidebar() {
           )}
 
           <button
-            onClick={logout}
+            onClick={handleLogout}
             title={collapsed ? 'Sair' : undefined}
             className={cn(
               'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150',

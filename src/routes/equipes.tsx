@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Users, Trash2, Building2, Activity, Clock, CheckCircle } from "lucide-react";
@@ -42,12 +46,14 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function EquipesPage() {
-  const { equipes, ocorrencias, profiles, addEquipe, updateEquipe, updateProfile } = useData();
+  const { equipes, ocorrencias, profiles, addEquipe, updateEquipe, updateProfile, deleteEquipe } = useData();
   const [nome, setNome] = useState('');
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState('');
   const [selectedOperadores, setSelectedOperadores] = useState<Set<string>>(new Set());
+  const [openDelete, setOpenDelete] = useState(false);
+  const [equipeParaDeletar, setEquipeParaDeletar] = useState<string | null>(null);
 
   const stats = useMemo(() => {
     const ativas = equipes.filter(e => e.ativa).length;
@@ -94,7 +100,16 @@ function EquipesPage() {
     setSelectedOperadores(new Set());
   };
 
+  const handleDelete = () => {
+    if (equipeParaDeletar) {
+      deleteEquipe(equipeParaDeletar);
+      setOpenDelete(false);
+      setEquipeParaDeletar(null);
+    }
+  };
+
   const getEqStats = (eqId: string) => equipeStats.find(e => e.id === eqId);
+  const getEquipeName = (eqId: string) => equipes.find(e => e.id === eqId)?.nome;
 
   return (
     <AppLayout>
@@ -174,57 +189,70 @@ function EquipesPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Dialog open={editId === eq.id} onOpenChange={(o) => { if (!o) setEditId(null); }}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                            setEditId(eq.id);
-                            setEditNome(eq.nome);
-                            const operadores = new Set(profiles.filter(p => p.equipe_id === eq.id && p.role === 'operador').map(p => p.id));
-                            setSelectedOperadores(operadores);
-                          }}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-h-[80vh] overflow-y-auto">
-                          <DialogHeader><DialogTitle>Editar Equipe</DialogTitle></DialogHeader>
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label>Nome</Label>
-                              <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Operadores</Label>
-                              <div className="space-y-2 border rounded-lg p-3 max-h-[300px] overflow-y-auto">
-                                {profiles.filter(p => p.role === 'operador').length === 0 ? (
-                                  <p className="text-sm text-muted-foreground">Nenhum operador cadastrado</p>
-                                ) : (
-                                  profiles.filter(p => p.role === 'operador').map(op => (
-                                    <div key={op.id} className="flex items-center gap-2">
-                                      <Checkbox
-                                        id={`op-${op.id}`}
-                                        checked={selectedOperadores.has(op.id)}
-                                        onCheckedChange={(checked) => {
-                                          const newSet = new Set(selectedOperadores);
-                                          if (checked) newSet.add(op.id);
-                                          else newSet.delete(op.id);
-                                          setSelectedOperadores(newSet);
-                                        }}
-                                      />
-                                      <Label htmlFor={`op-${op.id}`} className="font-normal cursor-pointer flex-1">
-                                        {op.nome} <span className="text-xs text-muted-foreground">({op.email})</span>
-                                      </Label>
-                                    </div>
-                                  ))
-                                )}
+                      <div className="flex items-center gap-2">
+                        <Dialog open={editId === eq.id} onOpenChange={(o) => { if (!o) setEditId(null); }}>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                              setEditId(eq.id);
+                              setEditNome(eq.nome);
+                              const operadores = new Set(profiles.filter(p => p.equipe_id === eq.id && p.role === 'operador').map(p => p.id));
+                              setSelectedOperadores(operadores);
+                            }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-h-[80vh] overflow-y-auto">
+                            <DialogHeader><DialogTitle>Editar Equipe</DialogTitle></DialogHeader>
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label>Nome</Label>
+                                <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Operadores</Label>
+                                <div className="space-y-2 border rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                                  {profiles.filter(p => p.role === 'operador').length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">Nenhum operador cadastrado</p>
+                                  ) : (
+                                    profiles.filter(p => p.role === 'operador').map(op => (
+                                      <div key={op.id} className="flex items-center gap-2">
+                                        <Checkbox
+                                          id={`op-${op.id}`}
+                                          checked={selectedOperadores.has(op.id)}
+                                          onCheckedChange={(checked) => {
+                                            const newSet = new Set(selectedOperadores);
+                                            if (checked) newSet.add(op.id);
+                                            else newSet.delete(op.id);
+                                            setSelectedOperadores(newSet);
+                                          }}
+                                        />
+                                        <Label htmlFor={`op-${op.id}`} className="font-normal cursor-pointer flex-1">
+                                          {op.nome} <span className="text-xs text-muted-foreground">({op.email})</span>
+                                        </Label>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <DialogFooter>
-                            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                            <Button onClick={handleEdit}>Salvar</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                            <DialogFooter>
+                              <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                              <Button onClick={handleEdit}>Salvar</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                          onClick={() => {
+                            setEquipeParaDeletar(eq.id);
+                            setOpenDelete(true);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -232,6 +260,22 @@ function EquipesPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Modal Deletar Equipe */}
+        <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
+          <AlertDialogContent>
+            <AlertDialogTitle>Deletar Equipe</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja deletar a equipe "{getEquipeName(equipeParaDeletar || '')}"? Os operadores desta equipe ficarão sem equipe. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+            <div className="flex justify-end gap-2 mt-6">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete}>
+                Deletar
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

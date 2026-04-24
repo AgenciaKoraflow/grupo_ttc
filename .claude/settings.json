@@ -6,10 +6,12 @@
       "Bash(sed -i '' 's/gerente_icomon/operador_id/g' src/mock/data.ts)",
       "Bash(sed -i '' 's/gerente_icomon/operador_id/g' src/routes/*.tsx)",
       "Read(//Users/jamescardosomartinelli/Downloads/grupo_ttc/src/routes/**)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Read(//Users/jamescardosomartinelli/Downloads/**)"
     ],
     "additionalDirectories": [
-      "/Users/jamescardosomartinelli/Downloads/grupo_ttc/src/routes"
+      "/Users/jamescardosomartinelli/Downloads/grupo_ttc/src/routes",
+      "/Users/jamescardosomartinelli/Downloads"
     ]
   }
 }

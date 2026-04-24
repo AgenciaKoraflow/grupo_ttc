@@ -7,6 +7,8 @@ export interface Profile {
   role: UserRole;
   equipe_id: string | null;
   created_at: string;
+  password?: string;
+  must_change_password?: boolean;
 }
 
 export interface Equipe {
@@ -131,4 +133,20 @@ export interface OcorrenciaFilters {
   municipio?: string;
   contratada?: string;
   search?: string;
+}
+
+export type LogTipo = 'LOGIN' | 'LOGOUT' | 'CRIACAO' | 'ATUALIZACAO' | 'EXCLUSAO' | 'FINALIZACAO' | 'REABERTURA' | 'RESET_SENHA' | 'VINCULACAO';
+export type LogCategoria = 'OCORRENCIA' | 'USUARIO' | 'EQUIPE' | 'TIPO_SERVICO' | 'AUTENTICACAO';
+
+export interface Log {
+  id: string;
+  userId: string | null;
+  userNome: string;
+  userRole: 'admin' | 'operador' | 'sistema';
+  tipo: LogTipo;
+  categoria: LogCategoria;
+  entidadeId: string;
+  entidadeNome: string;
+  detalhes: string;
+  created_at: string;
 }

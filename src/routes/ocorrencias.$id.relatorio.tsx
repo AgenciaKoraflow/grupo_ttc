@@ -56,14 +56,16 @@ function RelatorioPage() {
           <div className="print:max-w-full">
             {/* Header Premium */}
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-8 print:p-6">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <h1 className="text-3xl font-bold mb-2">RELATÓRIO DE PREVENTIVA EM PRIMÁRIA – FTTX</h1>
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold mb-2">Relatório de Preventiva - {oc.id_ocorrencia} | {oc.cabo_primaria || '—'}</h1>
                   <p className="text-slate-300 text-sm">Soluções em Serviços e Inteligência</p>
                 </div>
-                <div className="text-right text-xs text-slate-300">
-                  <p className="font-semibold text-white">ID: {oc.id_ocorrencia}</p>
-                  <p>{dataAtual}</p>
+                <div className="flex flex-col items-end gap-4">
+                  <img src="/logo-ttc.png" alt="Logo TTC" className="h-16 print:h-14" />
+                  <div className="text-right text-xs text-slate-300">
+                    <p className="font-semibold text-white">{dataAtual}</p>
+                  </div>
                 </div>
               </div>
             </div>

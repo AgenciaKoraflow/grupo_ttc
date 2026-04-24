@@ -1,10 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, UserCog, Shield, Clock, CheckCircle, Activity, Building2 } from "lucide-react";
+import {
+  Users, UserCog, Shield, Building2, Plus, Pencil, Key, Trash2, Copy, Check,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/usuarios")({
@@ -15,6 +28,7 @@ const C = {
   primary: 'oklch(0.50 0.225 255)',
   success: 'oklch(0.36 0.14 150)',
   admin: 'oklch(0.50 0.235 27)',
+  warning: 'oklch(0.80 0.165 70)',
   muted: 'oklch(0.46 0.028 252)',
 };
 
@@ -34,8 +48,23 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
   );
 }
 
+function generatePassword(): string {
+  const num = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `TTC${num}`;
+}
+
 function UsuariosPage() {
-  const { profiles, equipes, ocorrencias } = useData();
+  const { profiles, equipes, addProfile, updateProfile, deleteProfile } = useData();
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openResetPassword, setOpenResetPassword] = useState(false);
+  const [openPasswordDisplay, setOpenPasswordDisplay] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
+  const [formData, setFormData] = useState({ nome: '', email: '', role: 'operador' as const, equipe_id: '' });
+  const [selectedUserId, setSelectedUserId] = useState('');
 
   const stats = useMemo(() => {
     const admins = profiles.filter(p => p.role === 'admin').length;
@@ -45,28 +74,91 @@ function UsuariosPage() {
     return { admins, operadores, comEquipe, semEquipe };
   }, [profiles]);
 
-  const userStats = useMemo(() => {
-    return profiles.map(p => {
-      const userOcs = ocorrencias.filter(o => o.equipe_id === p.equipe_id);
-      const finalizadas = userOcs.filter(o => o.status === 'FINALIZADA' && o.finalized_by === p.id).length;
-      const pendentes = userOcs.filter(o => o.status === 'PENDENTE').length;
-      const emAndamento = userOcs.filter(o => o.status === 'EM_ANDAMENTO').length;
-      return {
-        id: p.id,
-        total: userOcs.length,
-        finalizadas,
-        pendentes,
-        emAndamento,
-      };
-    });
-  }, [profiles, ocorrencias]);
-
-  const getUserStats = (userId: string) => userStats.find(s => s.id === userId);
   const getInitials = (nome: string) => nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+  const handleCreateUser = () => {
+    if (!formData.nome || !formData.email) return;
+    const pwd = generatePassword();
+    addProfile({
+      nome: formData.nome,
+      email: formData.email,
+      role: formData.role,
+      equipe_id: formData.role === 'operador' ? formData.equipe_id || null : null,
+      password: pwd,
+    });
+    setGeneratedPassword(pwd);
+    setOpenCreate(false);
+    setOpenPasswordDisplay(true);
+    setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
+  };
+
+  const handleEditUser = () => {
+    const user = profiles.find(p => p.id === selectedUserId);
+    if (!user) return;
+    updateProfile(selectedUserId, {
+      nome: formData.nome,
+      email: formData.email,
+      role: formData.role,
+      equipe_id: formData.role === 'operador' ? formData.equipe_id || null : null,
+    });
+    setOpenEdit(false);
+    setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
+    setSelectedUserId('');
+  };
+
+  const openEditModal = (userId: string) => {
+    const user = profiles.find(p => p.id === userId);
+    if (!user) return;
+    setFormData({
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+      equipe_id: user.equipe_id || '',
+    });
+    setSelectedUserId(userId);
+    setOpenEdit(true);
+  };
+
+  const openDeleteModal = (userId: string) => {
+    setSelectedUserId(userId);
+    setOpenDelete(true);
+  };
+
+  const openResetPasswordModal = (userId: string) => {
+    setSelectedUserId(userId);
+    setOpenResetPassword(true);
+  };
+
+  const handleDeleteUser = () => {
+    if (selectedUserId) {
+      deleteProfile(selectedUserId);
+      setOpenDelete(false);
+      setSelectedUserId('');
+    }
+  };
+
+  const handleResetPassword = () => {
+    const pwd = generatePassword();
+    if (selectedUserId) {
+      updateProfile(selectedUserId, { password: pwd, must_change_password: true });
+      setGeneratedPassword(pwd);
+      setOpenResetPassword(false);
+      setOpenPasswordDisplay(true);
+      setSelectedUserId('');
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    setCopiedPassword(true);
+    setTimeout(() => setCopiedPassword(false), 2000);
+  };
+
+  const selectedUser = selectedUserId ? profiles.find(p => p.id === selectedUserId) : null;
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      <div className="p-6 space-y-6 max-w-6xl mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -77,6 +169,14 @@ function UsuariosPage() {
               Gerencie operadores e administradores do sistema
             </p>
           </div>
+          <Button
+            onClick={() => setOpenCreate(true)}
+            className="gap-2"
+            style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
+          >
+            <Plus className="h-4 w-4" />
+            Novo Usuário
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -94,18 +194,18 @@ function UsuariosPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Equipe</TableHead>
-                <TableHead className="w-[80px]">Ações</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {profiles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Nenhum usuário encontrado
                   </TableCell>
                 </TableRow>
               ) : profiles.map(p => {
-                const s = getUserStats(p.id);
                 const initials = getInitials(p.nome);
                 return (
                   <TableRow key={p.id}>
@@ -120,7 +220,7 @@ function UsuariosPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{p.email}</TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={p.role === 'admin' ? 'default' : 'secondary'}
                         className={cn('text-xs capitalize', p.role === 'admin' && 'bg-purple-100 text-purple-700')}
                       >
@@ -136,7 +236,39 @@ function UsuariosPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs text-muted-foreground">—</span>
+                      {p.must_change_password && (
+                        <Badge variant="outline" className="text-xs" style={{ borderColor: C.warning, color: C.warning }}>
+                          Primeiro acesso
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openEditModal(p.id)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openResetPasswordModal(p.id)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Key className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openDeleteModal(p.id)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -145,6 +277,205 @@ function UsuariosPage() {
           </Table>
         </div>
       </div>
+
+      {/* Modal Criar Usuário */}
+      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Usuário</DialogTitle>
+            <DialogDescription>Preencha os dados para criar um novo usuário no sistema.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="nome" className="text-sm font-medium">Nome</Label>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                placeholder="Ex: João Silva"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="Ex: joao@prev.com"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="role" className="text-sm font-medium">Perfil</Label>
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: e.target.value === 'operador' ? formData.equipe_id : '' })}
+                className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
+              >
+                <option value="operador">Operador</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            {formData.role === 'operador' && (
+              <div>
+                <Label htmlFor="equipe" className="text-sm font-medium">Equipe</Label>
+                <select
+                  id="equipe"
+                  value={formData.equipe_id}
+                  onChange={(e) => setFormData({ ...formData, equipe_id: e.target.value })}
+                  className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
+                >
+                  <option value="">Selecionar equipe...</option>
+                  {equipes.map(eq => (
+                    <option key={eq.id} value={eq.id}>{eq.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenCreate(false)}>Cancelar</Button>
+            <Button
+              onClick={handleCreateUser}
+              style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
+            >
+              Criar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Editar Usuário */}
+      <Dialog open={openEdit} onOpenChange={setOpenEdit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>Atualize os dados do usuário.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-nome" className="text-sm font-medium">Nome</Label>
+              <Input
+                id="edit-nome"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email" className="text-sm font-medium">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-role" className="text-sm font-medium">Perfil</Label>
+              <select
+                id="edit-role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: e.target.value === 'operador' ? formData.equipe_id : '' })}
+                className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
+              >
+                <option value="operador">Operador</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            {formData.role === 'operador' && (
+              <div>
+                <Label htmlFor="edit-equipe" className="text-sm font-medium">Equipe</Label>
+                <select
+                  id="edit-equipe"
+                  value={formData.equipe_id}
+                  onChange={(e) => setFormData({ ...formData, equipe_id: e.target.value })}
+                  className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
+                >
+                  <option value="">Selecionar equipe...</option>
+                  {equipes.map(eq => (
+                    <option key={eq.id} value={eq.id}>{eq.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEdit(false)}>Cancelar</Button>
+            <Button
+              onClick={handleEditUser}
+              style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Resetar Senha */}
+      <AlertDialog open={openResetPassword} onOpenChange={setOpenResetPassword}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Resetar Senha</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja resetar a senha de {selectedUser?.nome}? Uma nova senha temporária será gerada.
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-2 mt-6">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetPassword}>
+              Resetar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal Deletar Usuário */}
+      <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Deletar Usuário</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja deletar {selectedUser?.nome}? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-2 mt-6">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser}>
+              Deletar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal Exibir Senha Gerada */}
+      <Dialog open={openPasswordDisplay} onOpenChange={setOpenPasswordDisplay}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Senha Temporária Gerada</DialogTitle>
+            <DialogDescription>Anote ou copie a senha abaixo. O usuário precisará trocar esta senha no primeiro acesso.</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 p-4 rounded-lg bg-muted/30 border border-border/60">
+            <code className="text-lg font-mono font-bold flex-1">{generatedPassword}</code>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={copyToClipboard}
+              className="h-8 w-8 p-0"
+            >
+              {copiedPassword ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => setOpenPasswordDisplay(false)}
+              style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
+            >
+              Ok, Copiei
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

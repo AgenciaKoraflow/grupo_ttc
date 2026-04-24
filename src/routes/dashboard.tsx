@@ -249,9 +249,12 @@ function DashboardPage() {
   const { ocorrencias, equipes, profiles } = useData();
   const [period, setPeriod] = useState<Period>('all');
 
-  const allVisible = isAdmin
-    ? ocorrencias
-    : ocorrencias.filter(o => o.equipe_id === user?.equipe_id || o.assigned_to === user?.id);
+  const allVisible = useMemo(
+    () => isAdmin
+      ? ocorrencias
+      : ocorrencias.filter(o => o.equipe_id === user?.equipe_id || o.assigned_to === user?.id),
+    [isAdmin, ocorrencias, user?.equipe_id, user?.id]
+  );
 
   const filtered = useMemo(() => filterByPeriod(allVisible, period), [allVisible, period]);
 
@@ -375,8 +378,8 @@ function DashboardPage() {
                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                    <Area type="monotone" dataKey="criadas" name="Criadas" stroke={C.hPrimary} strokeWidth={2} fill="url(#gCriadas)" dot={{ r: 3, fill: C.hPrimary }} />
-                    <Area type="monotone" dataKey="finalizadas" name="Finalizadas" stroke={C.hDone} strokeWidth={2} fill="url(#gFinalizadas)" dot={{ r: 3, fill: C.hDone }} />
+                    <Area type="monotone" dataKey="criadas" name="Criadas" stroke={C.hPrimary} strokeWidth={2} fill="url(#gCriadas)" dot={{ r: 3, fill: C.hPrimary }} isAnimationActive={false} />
+                    <Area type="monotone" dataKey="finalizadas" name="Finalizadas" stroke={C.hDone} strokeWidth={2} fill="url(#gFinalizadas)" dot={{ r: 3, fill: C.hDone }} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -392,7 +395,7 @@ function DashboardPage() {
                   <ResponsiveContainer width="100%" height={170}>
                     <PieChart>
                       <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                        paddingAngle={3} dataKey="value" strokeWidth={0}>
+                        paddingAngle={3} dataKey="value" strokeWidth={0} isAnimationActive={false}>
                         {pieData.map((entry, i) => (
                           <Cell key={i} fill={entry.color} />
                         ))}
@@ -434,9 +437,9 @@ function DashboardPage() {
                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                    <Bar dataKey="finalizadas" name="Finalizadas" fill={C.hDone} radius={[4,4,0,0]} maxBarSize={40} />
-                    <Bar dataKey="em_andamento" name="Em Andamento" fill={C.hProgress} radius={[4,4,0,0]} maxBarSize={40} />
-                    <Bar dataKey="pendentes" name="Pendentes" fill={C.hPending} radius={[4,4,0,0]} maxBarSize={40} />
+                    <Bar dataKey="finalizadas" name="Finalizadas" fill={C.hDone} radius={[4,4,0,0]} maxBarSize={40} isAnimationActive={false} />
+                    <Bar dataKey="em_andamento" name="Em Andamento" fill={C.hProgress} radius={[4,4,0,0]} maxBarSize={40} isAnimationActive={false} />
+                    <Bar dataKey="pendentes" name="Pendentes" fill={C.hPending} radius={[4,4,0,0]} maxBarSize={40} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -451,7 +454,7 @@ function DashboardPage() {
                   <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="ocorrencias" name="Ocorrências" radius={[5,5,0,0]} maxBarSize={48}>
+                  <Bar dataKey="ocorrencias" name="Ocorrências" radius={[5,5,0,0]} maxBarSize={48} isAnimationActive={false}>
                     {weekData.map((_, i) => (
                       <Cell key={i} fill={i === 0 || i === 6 ? '#94a3b8' : C.hPrimary} />
                     ))}
@@ -553,7 +556,7 @@ function DashboardPage() {
                   <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} unit="d" />
                   <YAxis type="category" dataKey="equipe" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={60} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="tmr" name="TMR (dias)" radius={[0,4,4,0]} maxBarSize={24}>
+                  <Bar dataKey="tmr" name="TMR (dias)" radius={[0,4,4,0]} maxBarSize={24} isAnimationActive={false}>
                     {equipeData.map((eq, i) => (
                       <Cell key={i} fill={eq.tmr <= 5 ? C.hDone : eq.tmr <= 10 ? C.hPending : C.hRed} />
                     ))}

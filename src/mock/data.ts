@@ -12,10 +12,10 @@ export const mockEquipes: Equipe[] = [
 ];
 
 export const mockProfiles: Profile[] = [
-  { id: 'u-1', nome: 'Admin Silva', email: 'admin@prev.com', role: 'admin', equipe_id: null, created_at: '2025-01-01T00:00:00Z' },
-  { id: 'u-2', nome: 'Carlos Operador', email: 'carlos@prev.com', role: 'operador', equipe_id: 'eq-1', created_at: '2025-01-02T00:00:00Z' },
-  { id: 'u-3', nome: 'Ana Operadora', email: 'ana@prev.com', role: 'operador', equipe_id: 'eq-2', created_at: '2025-01-03T00:00:00Z' },
-  { id: 'u-4', nome: 'Pedro Técnico', email: 'pedro@prev.com', role: 'operador', equipe_id: 'eq-3', created_at: '2025-01-04T00:00:00Z' },
+  { id: 'u-1', nome: 'Admin Silva', email: 'admin@prev.com', role: 'admin', equipe_id: null, created_at: '2025-01-01T00:00:00Z', password: 'demo', must_change_password: false },
+  { id: 'u-2', nome: 'Carlos Operador', email: 'carlos@prev.com', role: 'operador', equipe_id: 'eq-1', created_at: '2025-01-02T00:00:00Z', password: 'demo', must_change_password: false },
+  { id: 'u-3', nome: 'Ana Operadora', email: 'ana@prev.com', role: 'operador', equipe_id: 'eq-2', created_at: '2025-01-03T00:00:00Z', password: 'demo', must_change_password: false },
+  { id: 'u-4', nome: 'Pedro Técnico', email: 'pedro@prev.com', role: 'operador', equipe_id: 'eq-3', created_at: '2025-01-04T00:00:00Z', password: 'demo', must_change_password: false },
 ];
 
 export const mockTiposServico: TipoServico[] = [

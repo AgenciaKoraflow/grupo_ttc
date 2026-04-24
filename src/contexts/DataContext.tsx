@@ -1,13 +1,15 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import type {
   Ocorrencia, Equipe, TipoServico, ServicoOcorrencia,
-  FotoServico, FotoOcorrenciaFinal, Profile, OcorrenciaStatus,
+  FotoServico, FotoOcorrenciaFinal, Profile, OcorrenciaStatus, UserRole,
 } from '@/types';
 import { supabase } from '@/lib/supabase';
 import {
   mockOcorrencias, mockEquipes, mockTiposServico, mockServicos,
   mockFotosServico, mockFotosFinais, mockProfiles,
 } from '@/mock/data';
+import { useAuth } from './AuthContext';
+import { useLog } from './LogContext';
 
 export type ImportMode = 'skip' | 'replace';
 
@@ -31,6 +33,7 @@ interface DataStore {
   updateOcorrencia: (id: string, data: Partial<Ocorrencia>) => void;
   addEquipe: (nome: string) => Equipe;
   updateEquipe: (id: string, data: Partial<Equipe>) => void;
+  deleteEquipe: (id: string) => void;
   addTipoServico: (nome: string) => TipoServico;
   updateTipoServico: (id: string, data: Partial<TipoServico>) => void;
   addServico: (data: Partial<ServicoOcorrencia>) => ServicoOcorrencia;
@@ -42,7 +45,9 @@ interface DataStore {
   deleteFotoFinal: (id: string) => void;
   finalizarOcorrencia: (id: string, userId: string) => void;
   reabrirOcorrencia: (id: string, userId: string) => void;
+  addProfile: (data: { nome: string; email: string; role: UserRole; equipe_id: string | null; password: string }) => Profile;
   updateProfile: (id: string, data: Partial<Profile>) => void;
+  deleteProfile: (id: string) => void;
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
   designarOperador: (ocorrenciaId: string, operadorId: string | null) => void;
   deleteOcorrencia: (id: string) => void;
@@ -206,6 +211,8 @@ async function loadDataFromSupabase() {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const { addLog } = useLog();
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServico[]>([]);
@@ -213,12 +220,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [fotosServico, setFotosServico] = useState<FotoServico[]>([]);
   const [fotosFinais, setFotosFinais] = useState<FotoOcorrenciaFinal[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>(mockProfiles);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const logAction = useCallback((tipo: string, categoria: string, entidadeId: string, entidadeNome: string, detalhes: string) => {
+    addLog({
+      userId: user?.id || null,
+      userNome: user?.nome || 'Sistema',
+      userRole: user?.role || 'sistema',
+      tipo: tipo as any,
+      categoria: categoria as any,
+      entidadeId,
+      entidadeNome,
+      detalhes,
+    });
+  }, [user, addLog]);
 
   // Carregar dados ao montar
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
       const data = await loadDataFromSupabase();
       setEquipes(data.equipes);
       setTiposServico(data.tiposServico);
@@ -226,7 +244,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setServicos(data.servicos);
       setFotosServico(data.fotosServico);
       setFotosFinais(data.fotosFinais);
-      setIsLoading(false);
     };
     loadData();
   }, []);
@@ -418,12 +435,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addEquipe = useCallback((nome: string): Equipe => {
     const eq: Equipe = { id: uid(), nome, ativa: true, created_at: new Date().toISOString() };
     setEquipes(prev => [...prev, eq]);
+    logAction('CRIACAO', 'EQUIPE', eq.id, nome, `Nova equipe criada`);
     return eq;
-  }, []);
+  }, [logAction]);
 
   const updateEquipe = useCallback((id: string, data: Partial<Equipe>) => {
+    const equipe = equipes.find(e => e.id === id);
     setEquipes(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
-  }, []);
+
+    if (equipe) {
+      const novoNome = data.nome || equipe.nome;
+      logAction('ATUALIZACAO', 'EQUIPE', id, novoNome, `Equipe atualizada`);
+    }
+  }, [equipes, logAction]);
+
+  const deleteEquipe = useCallback((id: string) => {
+    const equipe = equipes.find(e => e.id === id);
+    setEquipes(prev => prev.filter(e => e.id !== id));
+    setProfiles(prev => prev.map(p => p.equipe_id === id ? { ...p, equipe_id: null } : p));
+
+    if (equipe) {
+      logAction('EXCLUSAO', 'EQUIPE', id, equipe.nome, `Equipe deletada`);
+    }
+  }, [equipes, logAction]);
 
   const addTipoServico = useCallback((nome: string): TipoServico => {
     const ts: TipoServico = { id: uid(), nome, ativo: true, created_at: new Date().toISOString() };
@@ -631,6 +665,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const finalizarOcorrencia = useCallback((id: string, userId: string) => {
+    const oc = ocorrencias.find(o => o.id === id);
     setOcorrencias(prev => prev.map(o =>
       o.id === id ? {
         ...o, status: 'FINALIZADA' as OcorrenciaStatus,
@@ -639,6 +674,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
       } : o
     ));
+
+    if (oc) {
+      logAction('FINALIZACAO', 'OCORRENCIA', id, oc.id_ocorrencia, `Ocorrência finalizada`);
+    }
 
     // Sincronizar com Supabase
     (async () => {
@@ -653,9 +692,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       if (error) console.error('Erro ao finalizar ocorrência:', error);
     })();
-  }, []);
+  }, [ocorrencias, logAction]);
 
   const reabrirOcorrencia = useCallback((id: string, userId: string) => {
+    const oc = ocorrencias.find(o => o.id === id);
     setOcorrencias(prev => prev.map(o =>
       o.id === id ? {
         ...o, status: 'EM_ANDAMENTO' as OcorrenciaStatus,
@@ -665,6 +705,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
       } : o
     ));
+
+    if (oc) {
+      logAction('REABERTURA', 'OCORRENCIA', id, oc.id_ocorrencia, `Ocorrência reabierta`);
+    }
 
     // Sincronizar com Supabase
     (async () => {
@@ -682,10 +726,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       if (error) console.error('Erro ao reabrir ocorrência:', error);
     })();
-  }, []);
+  }, [ocorrencias, logAction]);
 
   const updateProfile = useCallback((id: string, data: Partial<Profile>) => {
+    const profile = profiles.find(p => p.id === id);
     setProfiles(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+
+    if (profile) {
+      const detalhes = data.must_change_password ? 'Senha resetada' : 'Perfil atualizado';
+      logAction('ATUALIZACAO', 'USUARIO', id, profile.nome, detalhes);
+    }
 
     // Sincronizar com Supabase
     (async () => {
@@ -696,7 +746,42 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       if (error) console.error('Erro ao atualizar perfil:', error);
     })();
-  }, []);
+  }, [profiles, logAction]);
+
+  const addProfile = useCallback((data: { nome: string; email: string; role: UserRole; equipe_id: string | null; password: string }): Profile => {
+    const profile: Profile = {
+      id: uid(),
+      nome: data.nome,
+      email: data.email,
+      role: data.role,
+      equipe_id: data.equipe_id,
+      password: data.password,
+      must_change_password: true,
+      created_at: new Date().toISOString(),
+    };
+    setProfiles(prev => [...prev, profile]);
+    logAction('CRIACAO', 'USUARIO', profile.id, data.nome, `Novo usuário criado com perfil ${data.role}`);
+    return profile;
+  }, [logAction]);
+
+  const deleteProfile = useCallback((id: string) => {
+    const profile = profiles.find(p => p.id === id);
+    setProfiles(prev => prev.filter(p => p.id !== id));
+
+    if (profile) {
+      logAction('EXCLUSAO', 'USUARIO', id, profile.nome, `Usuário deletado`);
+    }
+
+    // Sincronizar com Supabase
+    (async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+
+      if (error) console.error('Erro ao deletar perfil:', error);
+    })();
+  }, [profiles, logAction]);
 
   const vincularEquipe = useCallback((ocorrenciaId: string, equipeId: string | null) => {
     const eq = equipeId ? equipes.find(e => e.id === equipeId) : null;
@@ -721,11 +806,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [equipes]);
 
   const designarOperador = useCallback((ocorrenciaId: string, operadorId: string | null) => {
-    const user = operadorId ? profiles.find(p => p.id === operadorId) : null;
     setOcorrencias(prev => prev.map(o =>
-      o.id === ocorrenciaId ? { ...o, assigned_to: operadorId, assignedUser: user || undefined, updated_at: new Date().toISOString() } : o
+      o.id === ocorrenciaId ? { ...o, assigned_to: operadorId, updated_at: new Date().toISOString() } : o
     ));
-  }, [profiles]);
+
+    // Sincronizar com Supabase
+    (async () => {
+      const { error } = await supabase
+        .from('ocorrencias')
+        .update({
+          operador_id: operadorId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', ocorrenciaId);
+
+      if (error) console.error('Erro ao designar operador:', error);
+    })();
+  }, []);
 
   const deleteOcorrencia = useCallback((id: string) => {
     setOcorrencias(prev => prev.filter(o => o.id !== id));
@@ -741,15 +838,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  const value = useMemo(() => ({
+    ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
+    addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
+    addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
+    addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
+    finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile, vincularEquipe, designarOperador,
+    deleteOcorrencia,
+  }), [
+    ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
+    addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
+    addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
+    addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
+    finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile, vincularEquipe, designarOperador,
+    deleteOcorrencia,
+  ]);
+
   return (
-    <DataContext.Provider value={{
-      ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
-      addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe,
-      addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
-      addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
-      finalizarOcorrencia, reabrirOcorrencia, updateProfile, vincularEquipe, designarOperador,
-      deleteOcorrencia,
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );
