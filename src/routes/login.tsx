@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, ShieldCheck, BarChart3, Layers } from "lucide-react";
-import { mockProfiles } from "@/mock/data";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -28,7 +27,7 @@ function LoginPage() {
     if (success) {
       navigate({ to: "/dashboard" });
     } else {
-      setError("Credenciais inválidas. Use um dos perfis de demonstração.");
+      setError("Acesso indisponível. Entre em contato com o administrador do sistema.");
     }
   };
 
@@ -203,48 +202,6 @@ function LoginPage() {
             </Button>
           </form>
 
-          {/* Divisor */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground font-medium">Acesso rápido</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          {/* Demo accounts */}
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground mb-3">Selecione um perfil de demonstração:</p>
-            {mockProfiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => { setEmail(p.email); setPassword("demo"); }}
-                className="w-full flex items-center justify-between rounded-xl border border-border/70 px-4 py-3 text-sm hover:border-primary/40 hover:bg-primary/5 transition-all duration-150 text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-7 w-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                    style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
-                  >
-                    {p.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                  </div>
-                  <span className="font-medium text-foreground">{p.nome}</span>
-                </div>
-                <span
-                  className="text-[10px] font-semibold capitalize px-2.5 py-1 rounded-full"
-                  style={p.role === 'admin' ? {
-                    background: 'oklch(0.50 0.225 255 / 0.12)',
-                    color: 'oklch(0.42 0.18 255)',
-                    border: '1px solid oklch(0.50 0.225 255 / 0.25)',
-                  } : {
-                    background: 'oklch(0.56 0.185 150 / 0.12)',
-                    color: 'oklch(0.36 0.14 150)',
-                    border: '1px solid oklch(0.56 0.185 150 / 0.25)',
-                  }}
-                >
-                  {p.role}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>

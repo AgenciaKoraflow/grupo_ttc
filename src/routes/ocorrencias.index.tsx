@@ -73,37 +73,20 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
   const normalizedHeaders = headers.map(h => normalize(h));
   const headerMap: Record<number, string> = {};
 
-  console.log('=== PARSER DEBUG ===');
-  console.log('Headers originais:', headers);
-  console.log('Headers normalizados:', normalizedHeaders);
-  console.log('COL_MAP keys:', Object.keys(COL_MAP).map(k => ({ original: k, normalized: normalize(k) })));
-
   normalizedHeaders.forEach((nh, idx) => {
-    let found = false;
     for (const [expected, field] of Object.entries(COL_MAP)) {
-      const normalizedExpected = normalize(expected);
-      if (normalizedExpected === nh) {
-        console.log(`✅ Coluna ${idx} (${headers[idx]}) → campo: ${field}`);
+      if (normalize(expected) === nh) {
         headerMap[idx] = field;
-        found = true;
         break;
       }
     }
-    if (!found) {
-      console.log(`❌ Coluna ${idx} NÃO RECONHECIDA: "${headers[idx]}" (normalizado: "${nh}")`);
-    }
   });
-
-  console.log('HeaderMap final:', headerMap);
-  console.log('===================');
 
   const seenIds = new Set<string>();
   return matrix.map((cols, i) => {
     const row: Record<string, string> = {};
     Object.entries(headerMap).forEach(([idx, field]) => {
-      const value = (cols[Number(idx)] || '').trim();
-      row[field] = value;
-      if (i === 0) console.log(`Linha 1 - ${field}: "${value}"`);
+      row[field] = (cols[Number(idx)] || '').trim();
     });
 
     const id_oc = row.id_ocorrencia || '';

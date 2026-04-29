@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useData } from "@/contexts/DataContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Users, UserCog, Shield, Building2, Plus, Pencil, Key, Trash2, Copy, Check,
+  Users, UserCog, Shield, Building2, Plus, Pencil, Key, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,20 +47,12 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
   );
 }
 
-function generatePassword(): string {
-  const num = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `TTC${num}`;
-}
-
 function UsuariosPage() {
   const { profiles, equipes, addProfile, updateProfile, deleteProfile } = useData();
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openResetPassword, setOpenResetPassword] = useState(false);
-  const [openPasswordDisplay, setOpenPasswordDisplay] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState('');
-  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const [formData, setFormData] = useState({ nome: '', email: '', role: 'operador' as const, equipe_id: '' });
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -78,17 +69,13 @@ function UsuariosPage() {
 
   const handleCreateUser = () => {
     if (!formData.nome || !formData.email) return;
-    const pwd = generatePassword();
     addProfile({
       nome: formData.nome,
       email: formData.email,
       role: formData.role,
       equipe_id: formData.role === 'operador' ? formData.equipe_id || null : null,
-      password: pwd,
     });
-    setGeneratedPassword(pwd);
     setOpenCreate(false);
-    setOpenPasswordDisplay(true);
     setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
   };
 
@@ -138,20 +125,11 @@ function UsuariosPage() {
   };
 
   const handleResetPassword = () => {
-    const pwd = generatePassword();
     if (selectedUserId) {
-      updateProfile(selectedUserId, { password: pwd, must_change_password: true });
-      setGeneratedPassword(pwd);
+      updateProfile(selectedUserId, { must_change_password: true });
       setOpenResetPassword(false);
-      setOpenPasswordDisplay(true);
       setSelectedUserId('');
     }
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedPassword);
-    setCopiedPassword(true);
-    setTimeout(() => setCopiedPassword(false), 2000);
   };
 
   const selectedUser = selectedUserId ? profiles.find(p => p.id === selectedUserId) : null;
@@ -448,34 +426,6 @@ function UsuariosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Modal Exibir Senha Gerada */}
-      <Dialog open={openPasswordDisplay} onOpenChange={setOpenPasswordDisplay}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Senha Temporária Gerada</DialogTitle>
-            <DialogDescription>Anote ou copie a senha abaixo. O usuário precisará trocar esta senha no primeiro acesso.</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2 p-4 rounded-lg bg-muted/30 border border-border/60">
-            <code className="text-lg font-mono font-bold flex-1">{generatedPassword}</code>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={copyToClipboard}
-              className="h-8 w-8 p-0"
-            >
-              {copiedPassword ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => setOpenPasswordDisplay(false)}
-              style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
-            >
-              Ok, Copiei
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }

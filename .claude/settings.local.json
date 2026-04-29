@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(echo \"exitcode: $?\")"
+      "Bash(echo \"exitcode: $?\")",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(bun run *)",
+      "Bash(bunx tsc *)"
     ]
   }
 }

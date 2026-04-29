@@ -45,7 +45,7 @@ interface DataStore {
   deleteFotoFinal: (id: string) => void;
   finalizarOcorrencia: (id: string, userId: string) => void;
   reabrirOcorrencia: (id: string, userId: string) => void;
-  addProfile: (data: { nome: string; email: string; role: UserRole; equipe_id: string | null; password: string }) => Profile;
+  addProfile: (data: { nome: string; email: string; role: UserRole; equipe_id: string | null }) => Profile;
   updateProfile: (id: string, data: Partial<Profile>) => void;
   deleteProfile: (id: string) => void;
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
@@ -60,10 +60,6 @@ const uid = () => `gen-${++counter}`;
 
 // Função para carregar dados do Supabase
 async function loadDataFromSupabase() {
-  // TODO: Implementar carregamento do Supabase quando credenciais forem validadas
-  // Por enquanto, usar dados mock para que o app funcione
-  console.log('ℹ️ Usando dados mock (Supabase em breve)');
-
   return {
     equipes: mockEquipes,
     tiposServico: mockTiposServico,
@@ -737,25 +733,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
       logAction('ATUALIZACAO', 'USUARIO', id, profile.nome, detalhes);
     }
 
-    // Sincronizar com Supabase
+    // Sincronizar com Supabase — nunca enviar campos sensíveis
     (async () => {
+      const { password: _omit, ...safeData } = data as Profile & { password?: string };
       const { error } = await supabase
         .from('profiles')
-        .update(data)
+        .update(safeData)
         .eq('id', id);
 
       if (error) console.error('Erro ao atualizar perfil:', error);
     })();
   }, [profiles, logAction]);
 
-  const addProfile = useCallback((data: { nome: string; email: string; role: UserRole; equipe_id: string | null; password: string }): Profile => {
+  const addProfile = useCallback((data: { nome: string; email: string; role: UserRole; equipe_id: string | null }): Profile => {
     const profile: Profile = {
       id: uid(),
       nome: data.nome,
       email: data.email,
       role: data.role,
       equipe_id: data.equipe_id,
-      password: data.password,
       must_change_password: true,
       created_at: new Date().toISOString(),
     };

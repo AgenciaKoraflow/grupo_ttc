@@ -7,7 +7,6 @@ export interface Profile {
   role: UserRole;
   equipe_id: string | null;
   created_at: string;
-  password?: string;
   must_change_password?: boolean;
 }
 
