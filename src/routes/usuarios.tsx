@@ -16,9 +16,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Users, UserCog, Shield, Building2, Plus, Pencil, Key, Trash2,
+  Users, UserCog, Shield, Building2, Plus, Pencil, Key, Trash2, Copy, Check, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/usuarios")({
   component: UsuariosPage,
@@ -58,6 +59,12 @@ function UsuariosPage() {
 
   const [formData, setFormData] = useState({ nome: '', email: '', role: 'operador' as 'admin' | 'supervisor' | 'operador', equipe_id: '' });
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createdUser, setCreatedUser] = useState<{ nome: string; email: string; tempPassword: string; mode: 'create' | 'reset' } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   const stats = useMemo(() => {
     const admins = profiles.filter(p => p.role === 'admin').length;
@@ -72,16 +79,33 @@ function UsuariosPage() {
 
   const roleHasEquipe = (role: string) => role === 'operador' || role === 'supervisor';
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!formData.nome || !formData.email) return;
-    addProfile({
-      nome: formData.nome,
-      email: formData.email,
-      role: formData.role,
-      equipe_id: roleHasEquipe(formData.role) ? formData.equipe_id || null : null,
-    });
-    setOpenCreate(false);
-    setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
+    setIsCreating(true);
+    setCreateError('');
+    try {
+      const { profile, tempPassword } = await addProfile({
+        nome: formData.nome,
+        email: formData.email,
+        role: formData.role,
+        equipe_id: roleHasEquipe(formData.role) ? formData.equipe_id || null : null,
+      });
+      setOpenCreate(false);
+      setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
+      setCreatedUser({ nome: profile.nome, email: profile.email, tempPassword, mode: 'create' });
+    } catch (err: any) {
+      const msg = err?.message || 'Erro ao criar usuário. Verifique os dados e tente novamente.';
+      setCreateError(msg.includes('already') || msg.includes('exists') ? 'Este email já está cadastrado no sistema.' : msg);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    if (!createdUser) return;
+    navigator.clipboard.writeText(createdUser.tempPassword);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleEditUser = () => {
@@ -129,11 +153,23 @@ function UsuariosPage() {
     }
   };
 
-  const handleResetPassword = () => {
-    if (selectedUserId) {
-      updateProfile(selectedUserId, { must_change_password: true });
+  const handleResetPassword = async () => {
+    if (!selectedUserId) return;
+    setIsResetting(true);
+    setResetError('');
+    try {
+      const { data: result, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'reset-password', user_id: selectedUserId },
+      });
+      if (error) throw error;
+      const user = profiles.find(p => p.id === selectedUserId);
       setOpenResetPassword(false);
+      setCreatedUser({ nome: user!.nome, email: user!.email, tempPassword: result.tempPassword, mode: 'reset' });
       setSelectedUserId('');
+    } catch (err: any) {
+      setResetError(err?.message || 'Erro ao resetar senha. Tente novamente.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -280,7 +316,7 @@ function UsuariosPage() {
       </div>
 
       {/* Modal Criar Usuário */}
-      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+      <Dialog open={openCreate} onOpenChange={(open) => { if (!isCreating) { setOpenCreate(open); setCreateError(''); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Criar Novo Usuário</DialogTitle>
@@ -295,6 +331,7 @@ function UsuariosPage() {
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                 placeholder="Ex: João Silva"
                 className="mt-1.5"
+                disabled={isCreating}
               />
             </div>
             <div>
@@ -306,6 +343,7 @@ function UsuariosPage() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="Ex: joao@prev.com"
                 className="mt-1.5"
+                disabled={isCreating}
               />
             </div>
             <div>
@@ -314,9 +352,9 @@ function UsuariosPage() {
                 id="role"
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: roleHasEquipe(e.target.value) ? formData.equipe_id : '' })}
-                className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
+                className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm disabled:opacity-50"
+                disabled={isCreating}
               >
-
                 <option value="operador">Operador — criar, editar, reabrir</option>
                 <option value="supervisor">Supervisor — criar, editar, excluir</option>
                 <option value="admin">Administrador — acesso total</option>
@@ -329,7 +367,8 @@ function UsuariosPage() {
                   id="equipe"
                   value={formData.equipe_id}
                   onChange={(e) => setFormData({ ...formData, equipe_id: e.target.value })}
-                  className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
+                  className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm disabled:opacity-50"
+                  disabled={isCreating}
                 >
                   <option value="">Selecionar equipe...</option>
                   {equipes.map(eq => (
@@ -338,14 +377,80 @@ function UsuariosPage() {
                 </select>
               </div>
             )}
+            {createError && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-red-800">{createError}</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenCreate(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setOpenCreate(false); setCreateError(''); }} disabled={isCreating}>Cancelar</Button>
             <Button
               onClick={handleCreateUser}
+              disabled={isCreating}
               style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
             >
-              Criar
+              {isCreating ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Criando...
+                </span>
+              ) : 'Criar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Senha Temporária (criar ou resetar) */}
+      <Dialog open={!!createdUser} onOpenChange={(open) => { if (!open) { setCreatedUser(null); setCopied(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: 'oklch(0.36 0.14 150 / 0.12)' }}>
+                <Check className="h-4 w-4" style={{ color: 'oklch(0.36 0.14 150)' }} />
+              </div>
+              {createdUser?.mode === 'reset' ? 'Senha resetada com sucesso' : 'Usuário criado com sucesso'}
+            </DialogTitle>
+            <DialogDescription>
+              {createdUser?.mode === 'reset'
+                ? <>Repasse as novas credenciais para <strong>{createdUser?.nome}</strong>. O usuário deverá trocar a senha no próximo acesso.</>
+                : <>Repasse as credenciais abaixo para <strong>{createdUser?.nome}</strong>. A senha é temporária e deverá ser trocada no primeiro acesso.</>
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+                  <p className="text-sm font-medium truncate">{createdUser?.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground mb-0.5">Senha temporária</p>
+                  <p className="text-sm font-mono font-semibold tracking-wide">{createdUser?.tempPassword}</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={handleCopyPassword} className="shrink-0 gap-1.5">
+                  {copied ? <Check className="h-3.5 w-3.5" style={{ color: 'oklch(0.36 0.14 150)' }} /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? 'Copiado' : 'Copiar'}
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800">
+                Esta senha não será exibida novamente. Guarde-a antes de fechar.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => { setCreatedUser(null); setCopied(false); }}
+              style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -422,16 +527,27 @@ function UsuariosPage() {
       </Dialog>
 
       {/* Modal Resetar Senha */}
-      <AlertDialog open={openResetPassword} onOpenChange={setOpenResetPassword}>
+      <AlertDialog open={openResetPassword} onOpenChange={(open) => { if (!isResetting) { setOpenResetPassword(open); setResetError(''); } }}>
         <AlertDialogContent>
           <AlertDialogTitle>Resetar Senha</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja resetar a senha de {selectedUser?.nome}? Uma nova senha temporária será gerada.
+            Uma nova senha temporária será gerada para <strong>{selectedUser?.nome}</strong>. A senha atual deixará de funcionar imediatamente.
           </AlertDialogDescription>
-          <div className="flex justify-end gap-2 mt-6">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResetPassword}>
-              Resetar
+          {resetError && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200 mt-2">
+              <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-800">{resetError}</p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-4">
+            <AlertDialogCancel disabled={isResetting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetPassword} disabled={isResetting}>
+              {isResetting ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Resetando...
+                </span>
+              ) : 'Resetar'}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

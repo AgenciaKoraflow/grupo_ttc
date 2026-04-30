@@ -6,7 +6,8 @@
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(bun run *)",
       "Bash(bunx tsc *)",
-      "Bash(supabase --version)"
+      "Bash(supabase --version)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

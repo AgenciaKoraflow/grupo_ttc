@@ -4,6 +4,7 @@ import type {
   FotoServico, FotoOcorrenciaFinal, Profile, OcorrenciaStatus, UserRole,
 } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { getSignedUrl, getSignedUrls } from '@/lib/storage';
 import { useAuth } from './AuthContext';
 import { useLog } from './LogContext';
 
@@ -35,13 +36,13 @@ interface DataStore {
   addServico: (data: Partial<ServicoOcorrencia>) => ServicoOcorrencia;
   updateServico: (id: string, data: Partial<ServicoOcorrencia>) => void;
   deleteServico: (id: string) => void;
-  addFotoServico: (data: Partial<FotoServico>) => FotoServico;
+  addFotoServico: (file: File, meta: { servico_id: string; tipo_foto: 'antes' | 'depois'; ordem: number }) => Promise<FotoServico>;
   deleteFotoServico: (id: string) => void;
-  addFotoFinal: (data: Partial<FotoOcorrenciaFinal>) => FotoOcorrenciaFinal;
+  addFotoFinal: (file: File, meta: { ocorrencia_id: string; categoria: 'retirada_fios' | 'ctop'; ordem: number }) => Promise<FotoOcorrenciaFinal>;
   deleteFotoFinal: (id: string) => void;
   finalizarOcorrencia: (id: string, userId: string) => void;
   reabrirOcorrencia: (id: string, userId: string) => void;
-  addProfile: (data: { nome: string; email: string; role: UserRole; equipe_id: string | null }) => Profile;
+  addProfile: (data: { nome: string; email: string; role: UserRole; equipe_id: string | null }) => Promise<{ profile: Profile; tempPassword: string }>;
   updateProfile: (id: string, data: Partial<Profile>) => void;
   deleteProfile: (id: string) => void;
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
@@ -51,7 +52,6 @@ interface DataStore {
 
 const DataContext = createContext<DataStore | null>(null);
 
-const PLACEHOLDER_IMG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk0YTNiOCI+Rm90bzwvdGV4dD48L3N2Zz4=';
 
 interface LoadedData {
   equipes: Equipe[];
@@ -132,13 +132,31 @@ async function loadDataFromSupabase(): Promise<LoadedData> {
       updated_at: sv.updated_at,
     }));
 
+    const fotosServPaths = (fotosServRes.data ?? []).map((f: any) => f.storage_path).filter(Boolean);
+    const fotosFinaisPaths = (fotosFinaisRes.data ?? []).map((f: any) => f.storage_path).filter(Boolean);
+
+    const [servUrlMap, finaisUrlMap] = await Promise.all([
+      getSignedUrls('fotos-servico', fotosServPaths),
+      getSignedUrls('fotos-finais', fotosFinaisPaths),
+    ]);
+
+    const fotosServico = (fotosServRes.data ?? []).map((f: any) => ({
+      ...f,
+      url: servUrlMap.get(f.storage_path) ?? undefined,
+    })) as FotoServico[];
+
+    const fotosFinais = (fotosFinaisRes.data ?? []).map((f: any) => ({
+      ...f,
+      url: finaisUrlMap.get(f.storage_path) ?? undefined,
+    })) as FotoOcorrenciaFinal[];
+
     return {
       equipes: (equipeRes.data ?? []) as Equipe[],
       tiposServico: (tiposRes.data ?? []) as TipoServico[],
       ocorrencias: ocorrenciasFormatted,
       servicos: servicosFormatted,
-      fotosServico: (fotosServRes.data ?? []) as FotoServico[],
-      fotosFinais: (fotosFinaisRes.data ?? []) as FotoOcorrenciaFinal[],
+      fotosServico,
+      fotosFinais,
       profiles: (profilesRes.data ?? []) as Profile[],
     };
   } catch (error) {
@@ -612,120 +630,141 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ─── Fotos ─────────────────────────────────────────────────────────────────
 
 
-  const addFotoServico = useCallback((data: Partial<FotoServico>): FotoServico => {
+  const addFotoServico = useCallback(async (
+    file: File,
+    meta: { servico_id: string; tipo_foto: 'antes' | 'depois'; ordem: number },
+  ): Promise<FotoServico> => {
     const newId = crypto.randomUUID();
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const storagePath = `${meta.servico_id}/${meta.tipo_foto}/${newId}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('fotos-servico')
+      .upload(storagePath, file, { contentType: file.type });
+    if (uploadError) {
+      console.error('[Data] addFotoServico upload:', uploadError);
+      throw uploadError;
+    }
+
+    const signedUrl = await getSignedUrl('fotos-servico', storagePath);
+
     const f: FotoServico = {
       id: newId,
-      servico_id: data.servico_id || '',
-      tipo_foto: data.tipo_foto || 'antes',
-      storage_path: data.storage_path || '',
-      file_name: data.file_name || null,
-      mime_type: data.mime_type || null,
-      ordem: data.ordem || 1,
+      servico_id: meta.servico_id,
+      tipo_foto: meta.tipo_foto,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type || 'image/jpeg',
+      ordem: meta.ordem,
       created_at: new Date().toISOString(),
-      url: data.url || PLACEHOLDER_IMG,
+      url: signedUrl ?? undefined,
     };
     setFotosServico(prev => [...prev, f]);
 
-    (async () => {
-      const { error } = await supabase.from('fotos_servico').insert({
-        id: newId,
-        servico_id: data.servico_id,
-        tipo_foto: data.tipo_foto || 'antes',
-        storage_path: data.storage_path || '',
-        file_name: data.file_name || null,
-        mime_type: data.mime_type || null,
-        url: data.url || null,
-        ordem: data.ordem || 1,
-      });
-      if (error) console.error('[Data] addFotoServico:', error);
-    })();
+    const { error } = await supabase.from('fotos_servico').insert({
+      id: newId,
+      servico_id: meta.servico_id,
+      tipo_foto: meta.tipo_foto,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type || 'image/jpeg',
+      ordem: meta.ordem,
+    });
+    if (error) console.error('[Data] addFotoServico insert:', error);
 
     return f;
   }, []);
 
   const deleteFotoServico = useCallback((id: string) => {
+    const foto = fotosServico.find(f => f.id === id);
     setFotosServico(prev => prev.filter(f => f.id !== id));
 
     (async () => {
+      if (foto?.storage_path) {
+        const { error } = await supabase.storage.from('fotos-servico').remove([foto.storage_path]);
+        if (error) console.error('[Data] deleteFotoServico storage:', error);
+      }
       const { error } = await supabase.from('fotos_servico').delete().eq('id', id);
       if (error) console.error('[Data] deleteFotoServico:', error);
     })();
-  }, []);
+  }, [fotosServico]);
 
-  const addFotoFinal = useCallback((data: Partial<FotoOcorrenciaFinal>): FotoOcorrenciaFinal => {
+  const addFotoFinal = useCallback(async (
+    file: File,
+    meta: { ocorrencia_id: string; categoria: 'retirada_fios' | 'ctop'; ordem: number },
+  ): Promise<FotoOcorrenciaFinal> => {
     const newId = crypto.randomUUID();
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const storagePath = `${meta.ocorrencia_id}/${meta.categoria}/${newId}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('fotos-finais')
+      .upload(storagePath, file, { contentType: file.type });
+    if (uploadError) {
+      console.error('[Data] addFotoFinal upload:', uploadError);
+      throw uploadError;
+    }
+
+    const signedUrl = await getSignedUrl('fotos-finais', storagePath);
+
     const f: FotoOcorrenciaFinal = {
       id: newId,
-      ocorrencia_id: data.ocorrencia_id || '',
-      categoria: data.categoria || 'retirada_fios',
-      storage_path: data.storage_path || '',
-      file_name: data.file_name || null,
-      mime_type: data.mime_type || null,
-      ordem: data.ordem || 1,
+      ocorrencia_id: meta.ocorrencia_id,
+      categoria: meta.categoria,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type || 'image/jpeg',
+      ordem: meta.ordem,
       created_at: new Date().toISOString(),
-      url: data.url || PLACEHOLDER_IMG,
+      url: signedUrl ?? undefined,
     };
     setFotosFinais(prev => [...prev, f]);
 
-    (async () => {
-      const { error } = await supabase.from('fotos_finais').insert({
-        id: newId,
-        ocorrencia_id: data.ocorrencia_id,
-        categoria: data.categoria || 'retirada_fios',
-        storage_path: data.storage_path || '',
-        file_name: data.file_name || null,
-        mime_type: data.mime_type || null,
-        url: data.url || null,
-        ordem: data.ordem || 1,
-      });
-      if (error) console.error('[Data] addFotoFinal:', error);
-    })();
+    const { error } = await supabase.from('fotos_finais').insert({
+      id: newId,
+      ocorrencia_id: meta.ocorrencia_id,
+      categoria: meta.categoria,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type || 'image/jpeg',
+      ordem: meta.ordem,
+    });
+    if (error) console.error('[Data] addFotoFinal insert:', error);
 
     return f;
   }, []);
 
   const deleteFotoFinal = useCallback((id: string) => {
+    const foto = fotosFinais.find(f => f.id === id);
     setFotosFinais(prev => prev.filter(f => f.id !== id));
 
     (async () => {
+      if (foto?.storage_path) {
+        const { error } = await supabase.storage.from('fotos-finais').remove([foto.storage_path]);
+        if (error) console.error('[Data] deleteFotoFinal storage:', error);
+      }
       const { error } = await supabase.from('fotos_finais').delete().eq('id', id);
       if (error) console.error('[Data] deleteFotoFinal:', error);
     })();
-  }, []);
+  }, [fotosFinais]);
 
   // ─── Profiles ──────────────────────────────────────────────────────────────
-  // RISCO: criação de usuário via frontend não é suportada sem service_role key.
-  // addProfile apenas insere na tabela profiles; se o auth.users correspondente
-  // não existir, o INSERT vai falhar por FK constraint. Implementar via Edge Function.
-  const addProfile = useCallback((data: { nome: string; email: string; role: UserRole; equipe_id: string | null }): Profile => {
-    const now = new Date().toISOString();
-    const profile: Profile = {
-      id: crypto.randomUUID(),
-      nome: data.nome,
-      email: data.email,
-      role: data.role,
-      equipe_id: data.equipe_id,
-      must_change_password: true,
-      created_at: now,
-      updated_at: now,
-    };
+
+  const addProfile = useCallback(async (data: { nome: string; email: string; role: UserRole; equipe_id: string | null }): Promise<{ profile: Profile; tempPassword: string }> => {
+    const { data: result, error } = await supabase.functions.invoke('manage-user', {
+      body: { action: 'create', ...data },
+    });
+
+    if (error) {
+      console.error('[Data] addProfile edge function:', error);
+      throw error;
+    }
+
+    const profile = result.profile as Profile;
     setProfiles(prev => [...prev, profile]);
     logAction('CRIACAO', 'USUARIO', profile.id, data.nome, `Novo usuário criado com perfil ${data.role}`);
 
-    (async () => {
-      const { error } = await supabase.from('profiles').insert({
-        id: profile.id,
-        nome: data.nome,
-        email: data.email,
-        role: data.role,
-        equipe_id: data.equipe_id,
-        must_change_password: true,
-      });
-      if (error) console.error('[Data] addProfile (requer Edge Function para criar auth.user):', error);
-    })();
-
-    return profile;
+    return { profile, tempPassword: result.tempPassword as string };
   }, [logAction]);
 
   const updateProfile = useCallback((id: string, data: Partial<Profile>) => {
@@ -738,6 +777,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     (async () => {
+      // Email update requires Admin API — trigger sync_profile_email handles profiles.email sync.
+      if (data.email !== undefined && data.email !== profile?.email) {
+        const { error: emailErr } = await supabase.functions.invoke('manage-user', {
+          body: { action: 'update-email', user_id: id, email: data.email },
+        });
+        if (emailErr) console.error('[Data] updateProfile update-email:', emailErr);
+      }
+
       const payload: any = { updated_at: new Date().toISOString() };
       if (data.nome !== undefined) payload.nome = data.nome;
       if (data.role !== undefined) payload.role = data.role;
@@ -756,8 +803,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (profile) logAction('EXCLUSAO', 'USUARIO', id, profile.nome, 'Usuário deletado');
 
     (async () => {
-      const { error } = await supabase.from('profiles').delete().eq('id', id);
-      if (error) console.error('[Data] deleteProfile:', error);
+      // Must delete auth.user via Admin API — direct profiles DELETE would leave
+      // the auth.users entry intact and the user could still log in.
+      // CASCADE from auth.users → profiles handles the DB row automatically.
+      const { error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'delete', user_id: id },
+      });
+      if (error) console.error('[Data] deleteProfile edge function:', error);
     })();
   }, [profiles, logAction]);
 

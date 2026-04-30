@@ -57,7 +57,7 @@ function OcorrenciaDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fotoContext, setFotoContext] = useState<{ servicoId: string; tipo: 'antes' | 'depois'; isFinal?: boolean; categoria?: 'retirada_fios' | 'ctop' } | null>(null);
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
-  const imageCache = useRef<Map<string, string>>(new Map());
+  const [uploading, setUploading] = useState(false);
 
   const oc = ocorrencias.find(o => o.id === id);
 
@@ -90,81 +90,24 @@ function OcorrenciaDetailPage() {
     setShowServicoDialog(false);
   };
 
-  const createThumbnail = (dataUrl: string, mimeType: string = ''): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxSize = 300;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxSize) {
-            height = (height * maxSize) / width;
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width = (width * maxSize) / height;
-            height = maxSize;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
-    });
-  };
-
-  const convertHeifToJpeg = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const isHeif = file.type === 'image/heif' || file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heif') || file.name.toLowerCase().endsWith('.heic');
-
-      if (!isHeif) {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-        return;
+  const prepareImageFile = async (file: File): Promise<File> => {
+    const isHeic = file.type === 'image/heif' || file.type === 'image/heic'
+      || file.name.toLowerCase().endsWith('.heif')
+      || file.name.toLowerCase().endsWith('.heic');
+    if (!isHeic) return file;
+    if ((window as any).heic2any) {
+      try {
+        const blob = await (window as any).heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+        const outBlob = Array.isArray(blob) ? blob[0] : blob;
+        return new File([outBlob], file.name.replace(/\.hei[cf]$/i, '.jpg'), { type: 'image/jpeg' });
+      } catch {
+        return file;
       }
-
-      // Para HEIF, usar heic2any se disponível
-      if ((window as any).heic2any) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const blob = await (window as any).heic2any({ blob: file });
-            const reader2 = new FileReader();
-            reader2.onload = () => resolve(reader2.result as string);
-            reader2.readAsDataURL(blob);
-          } catch (err) {
-            const reader2 = new FileReader();
-            reader2.onload = () => resolve(reader2.result as string);
-            reader2.readAsDataURL(file);
-          }
-        };
-        reader.readAsDataURL(file);
-        return;
-      }
-
-      // Fallback: tentar ler como está
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    }
+    return file;
   };
 
-  const handleZoomFoto = (thumbnailUrl: string) => {
-    const originalUrl = imageCache.current?.get(thumbnailUrl) || thumbnailUrl;
-    setFotoZoom(originalUrl);
-  };
+  const handleZoomFoto = (url: string) => setFotoZoom(url);
 
   const handleFotoUpload = (servicoId: string, tipo: 'antes' | 'depois') => {
     setFotoContext({ servicoId, tipo, isFinal: false });
@@ -180,49 +123,34 @@ function OcorrenciaDetailPage() {
     const file = e.target.files?.[0];
     if (!file || !fotoContext) return;
 
+    setUploading(true);
     try {
-      const originalUrl = await convertHeifToJpeg(file);
-      const thumbnailUrl = await createThumbnail(originalUrl, file.type);
-
-      // Armazenar imagem original em cache para visualização em zoom
-      imageCache.current?.set(thumbnailUrl, originalUrl);
+      const processedFile = await prepareImageFile(file);
 
       if (fotoContext.isFinal) {
-        // Foto final (retirada_fios ou ctop)
         const existing = ocFotosFinais.filter(f => f.categoria === fotoContext.categoria);
-        addFotoFinal({
+        await addFotoFinal(processedFile, {
           ocorrencia_id: oc.id,
           categoria: fotoContext.categoria as 'retirada_fios' | 'ctop',
-          storage_path: `/${fotoContext.categoria}/${Date.now()}_${file.name}`,
-          file_name: file.name,
-          mime_type: 'image/jpeg',
           ordem: existing.length + 1,
-          url: thumbnailUrl,
         });
       } else {
-        // Foto de serviço (antes/depois)
         const existing = fotosServico.filter(
           f => f.servico_id === fotoContext.servicoId && f.tipo_foto === fotoContext.tipo
         );
-        addFotoServico({
+        await addFotoServico(processedFile, {
           servico_id: fotoContext.servicoId,
           tipo_foto: fotoContext.tipo,
-          storage_path: `/${fotoContext.tipo}/${Date.now()}_${file.name}`,
-          file_name: file.name,
-          mime_type: 'image/jpeg',
           ordem: existing.length + 1,
-          url: thumbnailUrl,
         });
       }
     } catch (error) {
-      console.error('Erro ao processar imagem:', error);
+      console.error('Erro ao fazer upload da foto:', error);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setFotoContext(null);
     }
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    setFotoContext(null);
   };
 
 
@@ -464,13 +392,13 @@ function OcorrenciaDetailPage() {
                               {fotos.length === 0 ? (
                                 <button
                                   onClick={() => handleFotoUpload(sv.id, tipo)}
-                                  disabled={!canEditOcorrencia}
+                                  disabled={!canEditOcorrencia || uploading}
                                   className="h-20 w-full rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                   style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}
                                 >
                                   <div className="flex flex-col items-center gap-1.5">
                                     <Camera className="h-4 w-4 text-muted-foreground/50" />
-                                    <p className="text-xs text-muted-foreground/60">Adicionar foto</p>
+                                    <p className="text-xs text-muted-foreground/60">{uploading ? 'Enviando...' : 'Adicionar foto'}</p>
                                   </div>
                                 </button>
                               ) : (
@@ -497,7 +425,8 @@ function OcorrenciaDetailPage() {
                                   {canEditOcorrencia && !isFinalizada && (
                                     <button
                                       onClick={() => handleFotoUpload(sv.id, tipo)}
-                                      className="h-20 w-20 rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all"
+                                      disabled={uploading}
+                                      className="h-20 w-20 rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                       style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}
                                     >
                                       <Plus className="h-4 w-4 text-muted-foreground/50" />
@@ -547,8 +476,9 @@ function OcorrenciaDetailPage() {
                       size="sm"
                       className="h-7 text-xs gap-1"
                       onClick={() => handleFotoFinalUploadClick(key)}
+                      disabled={uploading}
                     >
-                      <Upload className="h-3 w-3" /> Add foto
+                      <Upload className="h-3 w-3" /> {uploading ? 'Enviando...' : 'Add foto'}
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
