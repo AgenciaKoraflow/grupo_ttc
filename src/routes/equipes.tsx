@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,21 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function EquipesPage() {
+  const { isAdmin, isSupervisor, canDelete, canCreate } = useAuth();
+  const isAdminOrSupervisor = isAdmin || isSupervisor;
   const { equipes, ocorrencias, profiles, addEquipe, updateEquipe, updateProfile, deleteEquipe } = useData();
+
+  if (!isAdminOrSupervisor) {
+    return (
+      <AppLayout>
+        <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <Building2 className="h-12 w-12 text-muted-foreground/30" />
+          <p className="text-lg font-semibold text-muted-foreground">Acesso restrito</p>
+          <p className="text-sm text-muted-foreground/70">Apenas administradores e supervisores podem gerenciar equipes.</p>
+        </div>
+      </AppLayout>
+    );
+  }
   const [nome, setNome] = useState('');
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

@@ -51,9 +51,9 @@ const COL_MAP: Record<string, string> = {
   'OPERADOR': 'operador_id',
   'OPERADOR_ID': 'operador_id',
   'OPERADORID': 'operador_id',
-  'GERENTE ICOMON': 'operador_id',
-  'GERENTEICOMON': 'operador_id',
-  'GERENTE_ICOMON': 'operador_id',
+  'GERENTE ICOMON': 'gerente_icomon',
+  'GERENTEICOMON': 'gerente_icomon',
+  'GERENTE_ICOMON': 'gerente_icomon',
 };
 
 interface ParsedRow {
@@ -64,6 +64,7 @@ interface ParsedRow {
   contratada: string;
   id_ocorrencia: string;
   nome_at: string;
+  gerente_icomon: string;
   operador_id: string;
   rowStatus: 'ok' | 'duplicate' | 'error';
   message: string;
@@ -111,6 +112,7 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
       contratada: row.contratada || '',
       id_ocorrencia: id_oc,
       nome_at: row.nome_at || '',
+      gerente_icomon: row.gerente_icomon || '',
       operador_id: row.operador_id || '',
       rowStatus,
       message,
@@ -246,6 +248,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
       at: r.at || null,
       contratada: r.contratada || null,
       nome_at: r.nome_at || null,
+      gerente_icomon: r.gerente_icomon || null,
       operador_id: r.operador_id || null,
     })), mode);
     setImportResult(result);
@@ -438,7 +441,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                       <span className="text-muted-foreground truncate">{row.at || '—'}</span>
                       <span className="text-muted-foreground truncate">{row.contratada || '—'}</span>
                       <span className="text-muted-foreground truncate">{row.nome_at || '—'}</span>
-                      <span className="text-muted-foreground truncate">{row.operador_id || '—'}</span>
+                      <span className="text-muted-foreground truncate">{row.gerente_icomon || '—'}</span>
                       <span>
                         {row.rowStatus === 'ok' && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -522,7 +525,8 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 function OcorrenciasPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSupervisor, canDelete, canCreate } = useAuth();
+  const isAdminOrSupervisor = isAdmin || isSupervisor;
   const { ocorrencias, equipes, profiles, vincularEquipe, designarOperador, deleteOcorrencia } = useData();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -542,7 +546,7 @@ function OcorrenciasPage() {
   const ocorrenciaAtual = ocorrencias.find(o => o.id === ocorrenciaSelecionada);
   const operadorAtual = ocorrenciaAtual?.assignedUser;
 
-  let filtered = isAdmin
+  let filtered = isAdminOrSupervisor
     ? ocorrencias
     : ocorrencias.filter(o => o.equipe_id === user?.equipe_id);
 
@@ -576,7 +580,7 @@ function OcorrenciasPage() {
               {filtered.length} {filtered.length === 1 ? 'registro' : 'registros'}{hasFilters ? ' filtrados' : ''}
             </p>
           </div>
-          {isAdmin && (
+          {canCreate && (
             <Button
               size="sm"
               className="gap-2 h-9 font-semibold text-sm"
@@ -621,7 +625,7 @@ function OcorrenciasPage() {
                 <SelectItem value="FINALIZADA">Finalizada</SelectItem>
               </SelectContent>
             </Select>
-            {isAdmin && (
+            {isAdminOrSupervisor && (
               <Select value={equipeFilter} onValueChange={(v) => setEquipeFilter(v === 'all' ? '' : v)}>
                 <SelectTrigger className="flex-1 sm:flex-none sm:w-[155px] h-9 bg-background border-border/70">
                   <SelectValue placeholder="Equipe" />
@@ -721,7 +725,7 @@ function OcorrenciasPage() {
                   <FileText className="h-6 w-6" style={{ color: 'oklch(0.50 0.225 255 / 0.5)' }} />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">Nenhuma ocorrência encontrada</p>
-                {isAdmin && !hasFilters && (
+                {canCreate && !hasFilters && (
                   <button
                     className="mt-3 text-xs text-primary hover:underline"
                     onClick={() => setShowImport(true)}
@@ -850,7 +854,7 @@ function OcorrenciasPage() {
                     )}
                   </div>
                   <div className="flex items-center justify-center"><StatusBadge status={oc.status} /></div>
-                  <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.operador_id || '—'}</span>
+                  <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.gerente_icomon || '—'}</span>
                   </div>
                 </div>
               ))
@@ -871,7 +875,7 @@ function OcorrenciasPage() {
                 <Users className="h-5 w-5" />
                 Designar Ocorrência
               </div>
-              {isAdmin && ocorrenciaSelecionada && (
+              {canDelete && ocorrenciaSelecionada && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -969,8 +973,8 @@ function OcorrenciasPage() {
               <DialogClose asChild>
                 <Button variant="outline" className="flex-1">Cancelar</Button>
               </DialogClose>
-              {isAdmin && (
-                <Button 
+              {canDelete && (
+                <Button
                   variant="destructive"
                   className="flex-1"
                   onClick={() => {

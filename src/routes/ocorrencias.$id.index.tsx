@@ -41,7 +41,8 @@ function InfoItem({ label, value, icon: Icon }: { label: string; value: React.Re
 
 function OcorrenciaDetailPage() {
   const { id } = Route.useParams();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSupervisor, canDelete, canEdit, canReopen } = useAuth();
+  const isAdminOrSupervisor = isAdmin || isSupervisor;
   const {
     ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais,
     vincularEquipe, addServico, deleteServico, addFotoServico, deleteFotoServico,
@@ -74,7 +75,7 @@ function OcorrenciaDetailPage() {
   const retiradaFios = ocFotosFinais.filter(f => f.categoria === 'retirada_fios');
   const ctops = ocFotosFinais.filter(f => f.categoria === 'ctop');
   const isFinalizada = oc.status === 'FINALIZADA';
-  const canEdit = !isFinalizada || isAdmin;
+  const canEditOcorrencia = canEdit && (!isFinalizada || isAdminOrSupervisor);
 
   const handleAddServico = () => {
     if (!novoTipoId) return;
@@ -259,14 +260,14 @@ function OcorrenciaDetailPage() {
             <StatusBadge status={oc.status} />
           </div>
           <div className="flex flex-wrap gap-2">
-            {isAdmin && (
+            {isAdminOrSupervisor && (
               <Link to="/ocorrencias/$id/relatorio" params={{ id: oc.id }}>
                 <Button variant="outline" size="sm" className="gap-1.5 h-9 font-medium">
                   <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Relatório</span>
                 </Button>
               </Link>
             )}
-            {isFinalizada && (isAdmin || user?.equipe_id === oc.equipe_id) && (
+            {isFinalizada && canReopen && (isAdminOrSupervisor || user?.equipe_id === oc.equipe_id) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -276,7 +277,7 @@ function OcorrenciaDetailPage() {
                 <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Reabrir</span>
               </Button>
             )}
-            {isAdmin && (
+            {canDelete && (
               <Button
                 variant="outline"
                 size="sm"
@@ -306,7 +307,7 @@ function OcorrenciaDetailPage() {
                 <Building className="h-3 w-3 text-muted-foreground/60" />
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Equipe</p>
               </div>
-              {isAdmin && !isFinalizada ? (
+              {isAdminOrSupervisor && !isFinalizada ? (
                 <Select value={oc.equipe_id || ''} onValueChange={(v) => vincularEquipe(oc.id, v)}>
                   <SelectTrigger className="h-8 text-xs border-border/70">
                     <SelectValue placeholder="Selecionar" />
@@ -339,7 +340,7 @@ function OcorrenciaDetailPage() {
                 {ocServicos.length}
               </span>
             </div>
-            {canEdit && !isFinalizada && (
+            {canEditOcorrencia && !isFinalizada && (
               <Dialog open={showServicoDialog} onOpenChange={setShowServicoDialog}>
                 <DialogTrigger asChild>
                   <Button
@@ -423,7 +424,7 @@ function OcorrenciaDetailPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Badge variant="secondary" className="text-xs">{sv.status_item}</Badge>
-                        {canEdit && !isFinalizada && (
+                        {canEditOcorrencia && !isFinalizada && (
                           <button
                             onClick={() => deleteServico(sv.id)}
                             className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
@@ -463,7 +464,7 @@ function OcorrenciaDetailPage() {
                               {fotos.length === 0 ? (
                                 <button
                                   onClick={() => handleFotoUpload(sv.id, tipo)}
-                                  disabled={!canEdit || isFinalizada}
+                                  disabled={!canEditOcorrencia}
                                   className="h-20 w-full rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                   style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}
                                 >
@@ -483,7 +484,7 @@ function OcorrenciaDetailPage() {
                                         className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow"
                                         style={{ boxShadow: '0 2px 8px oklch(0.115 0.028 252 / 0.08)' }}
                                       />
-                                      {canEdit && !isFinalizada && (
+                                      {canEditOcorrencia && !isFinalizada && (
                                         <button
                                           onClick={() => deleteFotoServico(f.id)}
                                           className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
@@ -493,7 +494,7 @@ function OcorrenciaDetailPage() {
                                       )}
                                     </div>
                                   ))}
-                                  {canEdit && !isFinalizada && (
+                                  {canEditOcorrencia && !isFinalizada && (
                                     <button
                                       onClick={() => handleFotoUpload(sv.id, tipo)}
                                       className="h-20 w-20 rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all"
@@ -523,7 +524,7 @@ function OcorrenciaDetailPage() {
         </div>
 
         {/* Serviços Adicionais */}
-        {!isFinalizada && canEdit && (
+        {!isFinalizada && canEditOcorrencia && (
           <div
             className="rounded-2xl border border-border/60 bg-card p-5 space-y-4 animate-fade-in-up delay-150"
             style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.05)' }}
@@ -617,7 +618,7 @@ function OcorrenciaDetailPage() {
         )}
 
         {/* Botão Finalizar */}
-        {!isFinalizada && canEdit && ocServicos.length > 0 && (
+        {!isFinalizada && canEditOcorrencia && ocServicos.length > 0 && (
           <div className="flex flex-col gap-3 animate-fade-in-up delay-150">
             {!canFinalizar && (
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">

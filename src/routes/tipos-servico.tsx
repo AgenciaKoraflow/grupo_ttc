@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,21 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function TiposServicoPage() {
+  const { isAdmin, isSupervisor } = useAuth();
+  const isAdminOrSupervisor = isAdmin || isSupervisor;
   const { tiposServico, servicos, ocorrencias, addTipoServico, updateTipoServico } = useData();
+
+  if (!isAdminOrSupervisor) {
+    return (
+      <AppLayout>
+        <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <Wrench className="h-12 w-12 text-muted-foreground/30" />
+          <p className="text-lg font-semibold text-muted-foreground">Acesso restrito</p>
+          <p className="text-sm text-muted-foreground/70">Apenas administradores e supervisores podem gerenciar tipos de serviço.</p>
+        </div>
+      </AppLayout>
+    );
+  }
   const [nome, setNome] = useState('');
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

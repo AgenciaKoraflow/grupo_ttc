@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'operador';
+export type UserRole = 'admin' | 'supervisor' | 'operador';
 
 export interface Profile {
   id: string;
@@ -6,8 +6,9 @@ export interface Profile {
   email: string;
   role: UserRole;
   equipe_id: string | null;
+  must_change_password: boolean;
   created_at: string;
-  must_change_password?: boolean;
+  updated_at: string;
 }
 
 export interface Equipe {
@@ -15,6 +16,7 @@ export interface Equipe {
   nome: string;
   ativa: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export type OcorrenciaStatus = 'PENDENTE' | 'EM_ANDAMENTO' | 'FINALIZADA';
@@ -25,14 +27,16 @@ export interface Ocorrencia {
   municipio: string;
   cabo_primaria: string | null;
   at: string | null;
-  contratada: string | null;
   nome_at: string | null;
+  contratada: string | null;
+  gerente_icomon: string | null;
   operador_id: string | null;
   operador?: Profile;
   equipe_id: string | null;
   equipe?: Equipe;
   assigned_to: string | null;
   assignedUser?: Profile;
+  created_by: string | null;
   status: OcorrenciaStatus;
   created_at: string;
   updated_at: string;
@@ -45,8 +49,10 @@ export interface Ocorrencia {
 export interface TipoServico {
   id: string;
   nome: string;
+  descricao: string | null;
   ativo: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ServicoOcorrencia {
@@ -141,7 +147,7 @@ export interface Log {
   id: string;
   userId: string | null;
   userNome: string;
-  userRole: 'admin' | 'operador' | 'sistema';
+  userRole: UserRole | 'sistema';
   tipo: LogTipo;
   categoria: LogCategoria;
   entidadeId: string;

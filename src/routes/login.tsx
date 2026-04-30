@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,23 +11,30 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }, [isLoading, isAuthenticated]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const success = await login(email, password);
+    const result = await login(email, password);
     setLoading(false);
-    if (success) {
+    if (result.success) {
       navigate({ to: "/dashboard" });
     } else {
-      setError("Acesso indisponível. Entre em contato com o administrador do sistema.");
+      setError(result.error ?? "Erro ao fazer login. Tente novamente.");
     }
   };
 
@@ -154,6 +161,7 @@ function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                autoComplete="email"
                 className="h-11 bg-card border-border/80 focus-visible:ring-2 focus-visible:ring-primary/40 transition-all"
               />
             </div>
@@ -166,12 +174,14 @@ function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                autoComplete="current-password"
                 className="h-11 bg-card border-border/80 focus-visible:ring-2 focus-visible:ring-primary/40 transition-all"
               />
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm"
+              <div
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm"
                 style={{
                   background: 'oklch(0.50 0.235 27 / 0.08)',
                   border: '1px solid oklch(0.50 0.235 27 / 0.25)',

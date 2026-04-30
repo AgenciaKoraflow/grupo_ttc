@@ -21,22 +21,36 @@ const adminItems = [
   { title: 'Logs', url: '/logs', icon: History },
 ];
 
+const supervisorItems = [
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Ocorrências', url: '/ocorrencias', icon: FileText },
+  { title: 'Equipes', url: '/equipes', icon: Building2 },
+  { title: 'Tipos de Serviço', url: '/tipos-servico', icon: Wrench },
+  { title: 'Logs', url: '/logs', icon: History },
+];
+
 const operadorItems = [
   { title: 'Minhas Ocorrências', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Ocorrências', url: '/ocorrencias', icon: FileText },
 ];
 
+
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isSupervisor, isOperador, logout } = useAuth();
   const { addLog } = useLog();
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
-  const items = isAdmin ? adminItems : operadorItems;
 
-  const handleLogout = () => {
+  const items = isAdmin
+    ? adminItems
+    : isSupervisor
+      ? supervisorItems
+      : operadorItems;
+
+  const handleLogout = async () => {
     if (user) {
       addLog({
         userId: user.id,
@@ -49,7 +63,7 @@ export function AppSidebar() {
         detalhes: `${user.nome} fez logout`,
       });
     }
-    logout();
+    await logout();
     navigate({ to: '/login' });
   };
 

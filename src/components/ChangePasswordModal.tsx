@@ -13,8 +13,9 @@ export function ChangePasswordModal() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setError('');
 
     if (!newPassword || !confirmPassword) {
@@ -32,9 +33,16 @@ export function ChangePasswordModal() {
       return;
     }
 
-    changePassword(newPassword);
-    setNewPassword('');
-    setConfirmPassword('');
+    setLoading(true);
+    const result = await changePassword(newPassword);
+    setLoading(false);
+
+    if (result.success) {
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      setError(result.error ?? 'Erro ao trocar a senha. Tente novamente.');
+    }
   };
 
   if (!needsPasswordChange || !user) return null;
@@ -70,6 +78,7 @@ export function ChangePasswordModal() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Digite sua nova senha"
+              autoComplete="new-password"
               className="mt-1.5"
             />
           </div>
@@ -82,6 +91,7 @@ export function ChangePasswordModal() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirme sua nova senha"
+              autoComplete="new-password"
               className="mt-1.5"
             />
           </div>
@@ -97,10 +107,18 @@ export function ChangePasswordModal() {
         <DialogFooter>
           <Button
             onClick={handleChangePassword}
+            disabled={loading}
             style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}
             className="w-full"
           >
-            Trocar Senha e Acessar
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Salvando...
+              </span>
+            ) : (
+              'Trocar Senha e Acessar'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

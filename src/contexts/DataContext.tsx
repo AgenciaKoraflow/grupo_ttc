@@ -4,10 +4,6 @@ import type {
   FotoServico, FotoOcorrenciaFinal, Profile, OcorrenciaStatus, UserRole,
 } from '@/types';
 import { supabase } from '@/lib/supabase';
-import {
-  mockOcorrencias, mockEquipes, mockTiposServico, mockServicos,
-  mockFotosServico, mockFotosFinais, mockProfiles,
-} from '@/mock/data';
 import { useAuth } from './AuthContext';
 import { useLog } from './LogContext';
 
@@ -55,103 +51,52 @@ interface DataStore {
 
 const DataContext = createContext<DataStore | null>(null);
 
-let counter = 100;
-const uid = () => `gen-${++counter}`;
+const PLACEHOLDER_IMG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk0YTNiOCI+Rm90bzwvdGV4dD48L3N2Zz4=';
 
-// Função para carregar dados do Supabase
-async function loadDataFromSupabase() {
-  return {
-    equipes: mockEquipes,
-    tiposServico: mockTiposServico,
-    ocorrencias: mockOcorrencias,
-    servicos: mockServicos,
-    fotosServico: mockFotosServico,
-    fotosFinais: mockFotosFinais,
+interface LoadedData {
+  equipes: Equipe[];
+  tiposServico: TipoServico[];
+  ocorrencias: Ocorrencia[];
+  servicos: ServicoOcorrencia[];
+  fotosServico: FotoServico[];
+  fotosFinais: FotoOcorrenciaFinal[];
+  profiles: Profile[];
+}
+
+async function loadDataFromSupabase(): Promise<LoadedData> {
+  const empty: LoadedData = {
+    equipes: [], tiposServico: [], ocorrencias: [],
+    servicos: [], fotosServico: [], fotosFinais: [], profiles: [],
   };
 
-  // Código original comentado para referência
-  /*
   try {
-    // Carregar equipes
-    const { data: equipeData, error: equipeError } = await supabase
-      .from('equipes')
-      .select('*');
+    const [equipeRes, tiposRes, ocorrenciasRes, servicosRes, fotosServRes, fotosFinaisRes, profilesRes] = await Promise.all([
+      supabase.from('equipes').select('*').order('nome'),
+      supabase.from('tipos_servico').select('*').order('nome'),
+      supabase.from('ocorrencias').select(`
+        id, id_ocorrencia, municipio, cabo_primaria, at, nome_at, contratada, gerente_icomon,
+        operador_id, equipe_id, assigned_to, status, created_at, updated_at, created_by,
+        finalized_at, finalized_by, reopened_at, reopened_by,
+        equipes (id, nome, ativa, created_at, updated_at)
+      `).order('created_at', { ascending: false }),
+      supabase.from('servicos').select(`
+        id, ocorrencia_id, tipo_servico_id, observacao, status_item, ordem, created_by, created_at, updated_at,
+        tipos_servico (id, nome, descricao, ativo, created_at, updated_at)
+      `),
+      supabase.from('fotos_servico').select('*'),
+      supabase.from('fotos_finais').select('*'),
+      supabase.from('profiles').select('*').order('nome'),
+    ]);
 
-    if (equipeError) throw equipeError;
+    if (equipeRes.error) { console.error('[Data] equipes:', equipeRes.error); return empty; }
+    if (tiposRes.error) { console.error('[Data] tipos_servico:', tiposRes.error); return empty; }
+    if (ocorrenciasRes.error) { console.error('[Data] ocorrencias:', ocorrenciasRes.error); return empty; }
+    if (servicosRes.error) { console.error('[Data] servicos:', servicosRes.error); return empty; }
+    if (fotosServRes.error) { console.error('[Data] fotos_servico:', fotosServRes.error); return empty; }
+    if (fotosFinaisRes.error) { console.error('[Data] fotos_finais:', fotosFinaisRes.error); return empty; }
+    if (profilesRes.error) { console.error('[Data] profiles:', profilesRes.error); return empty; }
 
-    // Carregar tipos de serviço
-    const { data: tiposData, error: tiposError } = await supabase
-      .from('tipos_servico')
-      .select('*');
-
-    if (tiposError) throw tiposError;
-
-    // Carregar ocorrências com join de equipes
-    const { data: ocorrenciasData, error: ocorrenciasError } = await supabase
-      .from('ocorrencias')
-      .select(`
-        id,
-        id_ocorrencia,
-        municipio,
-        cabo_primaria,
-        at,
-        nome_at,
-        contratada,
-        operador_id,
-        equipe_id,
-        status,
-        created_at,
-        updated_at,
-        created_by,
-        equipes (
-          id,
-          nome,
-          ativa,
-          created_at
-        )
-      `);
-
-    if (ocorrenciasError) throw ocorrenciasError;
-
-    // Carregar serviços com join de tipos_servico
-    const { data: servicosData, error: servicosError } = await supabase
-      .from('servicos')
-      .select(`
-        id,
-        ocorrencia_id,
-        tipo_servico_id,
-        observacao,
-        status_item,
-        ordem,
-        created_at,
-        updated_at,
-        created_by,
-        tipos_servico (
-          id,
-          nome,
-          ativo,
-          created_at
-        )
-      `);
-
-    if (servicosError) throw servicosError;
-
-    // Carregar fotos de serviços
-    const { data: fotosServData, error: fotosServError } = await supabase
-      .from('fotos_servico')
-      .select('*');
-
-    if (fotosServError) throw fotosServError;
-
-    // Carregar fotos finais
-    const { data: fotosFinaisData, error: fotosFinaisError } = await supabase
-      .from('fotos_finais')
-      .select('*');
-
-    if (fotosFinaisError) throw fotosFinaisError;
-
-    // Transformar dados para o formato esperado
-    const ocorrenciasFormatted: Ocorrencia[] = (ocorrenciasData || []).map((oc: any) => ({
+    const ocorrenciasFormatted: Ocorrencia[] = (ocorrenciasRes.data ?? []).map((oc: any) => ({
       id: oc.id,
       id_ocorrencia: oc.id_ocorrencia,
       municipio: oc.municipio,
@@ -159,22 +104,26 @@ async function loadDataFromSupabase() {
       at: oc.at,
       nome_at: oc.nome_at,
       contratada: oc.contratada,
+      gerente_icomon: oc.gerente_icomon,
       operador_id: oc.operador_id,
       equipe_id: oc.equipe_id,
-      equipe: oc.equipes as Equipe,
-      assigned_to: null,
+      equipe: oc.equipes as Equipe ?? undefined,
+      assigned_to: oc.assigned_to,
+      created_by: oc.created_by,
       status: oc.status as OcorrenciaStatus,
       created_at: oc.created_at,
       updated_at: oc.updated_at,
-      finalized_at: null,
-      finalized_by: null,
+      finalized_at: oc.finalized_at,
+      finalized_by: oc.finalized_by,
+      reopened_at: oc.reopened_at,
+      reopened_by: oc.reopened_by,
     }));
 
-    const servicosFormatted: ServicoOcorrencia[] = (servicosData || []).map((sv: any) => ({
+    const servicosFormatted: ServicoOcorrencia[] = (servicosRes.data ?? []).map((sv: any) => ({
       id: sv.id,
       ocorrencia_id: sv.ocorrencia_id,
       tipo_servico_id: sv.tipo_servico_id,
-      tipo_servico: sv.tipos_servico as TipoServico,
+      tipo_servico: sv.tipos_servico as TipoServico ?? undefined,
       observacao: sv.observacao,
       status_item: sv.status_item,
       ordem: sv.ordem,
@@ -184,26 +133,18 @@ async function loadDataFromSupabase() {
     }));
 
     return {
-      equipes: (equipeData || []) as Equipe[],
-      tiposServico: (tiposData || []) as TipoServico[],
+      equipes: (equipeRes.data ?? []) as Equipe[],
+      tiposServico: (tiposRes.data ?? []) as TipoServico[],
       ocorrencias: ocorrenciasFormatted,
       servicos: servicosFormatted,
-      fotosServico: (fotosServData || []) as FotoServico[],
-      fotosFinais: (fotosFinaisData || []) as FotoOcorrenciaFinal[],
+      fotosServico: (fotosServRes.data ?? []) as FotoServico[],
+      fotosFinais: (fotosFinaisRes.data ?? []) as FotoOcorrenciaFinal[],
+      profiles: (profilesRes.data ?? []) as Profile[],
     };
   } catch (error) {
-    console.error('Erro ao carregar dados do Supabase:', error);
-    // Retornar dados mock em caso de erro
-    return {
-      equipes: mockEquipes,
-      tiposServico: mockTiposServico,
-      ocorrencias: mockOcorrencias,
-      servicos: mockServicos,
-      fotosServico: mockFotosServico,
-      fotosFinais: mockFotosFinais,
-    };
+    console.error('[Data] loadDataFromSupabase:', error);
+    return empty;
   }
-  */
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -215,7 +156,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [servicos, setServicos] = useState<ServicoOcorrencia[]>([]);
   const [fotosServico, setFotosServico] = useState<FotoServico[]>([]);
   const [fotosFinais, setFotosFinais] = useState<FotoOcorrenciaFinal[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>(mockProfiles);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   const logAction = useCallback((tipo: string, categoria: string, entidadeId: string, entidadeNome: string, detalhes: string) => {
     addLog({
@@ -230,39 +171,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, [user, addLog]);
 
-  // Carregar dados ao montar
   useEffect(() => {
-    const loadData = async () => {
-      const data = await loadDataFromSupabase();
+    loadDataFromSupabase().then(data => {
       setEquipes(data.equipes);
       setTiposServico(data.tiposServico);
       setOcorrencias(data.ocorrencias);
       setServicos(data.servicos);
       setFotosServico(data.fotosServico);
       setFotosFinais(data.fotosFinais);
-    };
-    loadData();
+      setProfiles(data.profiles);
+    });
   }, []);
+
+  // ─── Ocorrências ───────────────────────────────────────────────────────────
 
   const addOcorrencias = useCallback((items: Partial<Ocorrencia>[]): number => {
     let count = 0;
     const newOcs: Ocorrencia[] = [];
+    const insertPayloads: any[] = [];
+
     for (const item of items) {
       if (!item.id_ocorrencia) continue;
       const exists = ocorrencias.some(o => o.id_ocorrencia === item.id_ocorrencia) ||
                      newOcs.some(o => o.id_ocorrencia === item.id_ocorrencia);
       if (exists) continue;
+      const newId = crypto.randomUUID();
       newOcs.push({
-        id: uid(),
+        id: newId,
         id_ocorrencia: item.id_ocorrencia,
         municipio: item.municipio || '',
         cabo_primaria: item.cabo_primaria || null,
         at: item.at || null,
         contratada: item.contratada || null,
         nome_at: item.nome_at || null,
+        gerente_icomon: item.gerente_icomon || null,
         operador_id: item.operador_id || null,
         equipe_id: null,
         assigned_to: null,
+        created_by: user?.id || null,
         status: 'PENDENTE',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -271,11 +217,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reopened_at: null,
         reopened_by: null,
       });
+      insertPayloads.push({
+        id: newId,
+        id_ocorrencia: item.id_ocorrencia,
+        municipio: item.municipio || '',
+        cabo_primaria: item.cabo_primaria || null,
+        at: item.at || null,
+        contratada: item.contratada || null,
+        nome_at: item.nome_at || null,
+        gerente_icomon: item.gerente_icomon || null,
+        operador_id: item.operador_id || null,
+        created_by: user?.id || null,
+      });
       count++;
     }
-    if (newOcs.length) setOcorrencias(prev => [...prev, ...newOcs]);
+
+    if (newOcs.length) {
+      setOcorrencias(prev => [...prev, ...newOcs]);
+      (async () => {
+        const { error } = await supabase.from('ocorrencias').insert(insertPayloads);
+        if (error) console.error('[Data] addOcorrencias insert:', error);
+      })();
+    }
     return count;
-  }, [ocorrencias]);
+  }, [ocorrencias, user]);
 
   const importOcorrencias = useCallback((items: Partial<Ocorrencia>[], mode: ImportMode): ImportResult => {
     const result: ImportResult = { imported: 0, replaced: 0, skipped: 0, errors: 0 };
@@ -284,10 +249,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const insertPayloads: any[] = [];
     const updatePayloads: { id: string; data: any }[] = [];
 
-    // snapshot de IDs atuais (inclui os que estamos adicionando no batch)
-    const existingMap = new Map(
-      [...ocorrencias].map(o => [o.id_ocorrencia, o])
-    );
+    const existingMap = new Map(ocorrencias.map(o => [o.id_ocorrencia, o]));
     const seenInBatch = new Set<string>();
 
     for (const item of items) {
@@ -297,6 +259,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const existingOc = existingMap.get(item.id_ocorrencia);
 
       const newId = crypto.randomUUID();
+      const now = new Date().toISOString();
       const payload: Ocorrencia = {
         id: newId,
         id_ocorrencia: item.id_ocorrencia,
@@ -305,12 +268,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         at: item.at || null,
         contratada: item.contratada || null,
         nome_at: item.nome_at || null,
+        gerente_icomon: item.gerente_icomon || null,
         operador_id: item.operador_id || null,
         equipe_id: null,
         assigned_to: null,
+        created_by: user?.id || null,
         status: 'PENDENTE',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
         finalized_at: null,
         finalized_by: null,
         reopened_at: null,
@@ -321,8 +286,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         newOcs.push(payload);
         seenInBatch.add(item.id_ocorrencia);
         result.imported++;
-
-        // Adicionar para INSERT no Supabase
         insertPayloads.push({
           id: newId,
           id_ocorrencia: item.id_ocorrencia,
@@ -331,39 +294,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
           at: item.at || null,
           contratada: item.contratada || null,
           nome_at: item.nome_at || null,
+          gerente_icomon: item.gerente_icomon || null,
           operador_id: item.operador_id || null,
+          created_by: user?.id || null,
         });
-      } else if (mode === 'skip') {
+      } else if (mode === 'skip' || isDupInBatch) {
         result.skipped++;
-      } else if (mode === 'replace' && existingOc && !isDupInBatch) {
-        replacements.push({
-          id: existingOc.id,
-          data: {
-            municipio: payload.municipio,
-            cabo_primaria: payload.cabo_primaria,
-            at: payload.at,
-            contratada: payload.contratada,
-            nome_at: payload.nome_at,
-            operador_id: payload.operador_id,
-            updated_at: new Date().toISOString(),
-          },
-        });
+      } else if (mode === 'replace' && existingOc) {
+        const updateData = {
+          municipio: payload.municipio,
+          cabo_primaria: payload.cabo_primaria,
+          at: payload.at,
+          contratada: payload.contratada,
+          nome_at: payload.nome_at,
+          gerente_icomon: payload.gerente_icomon,
+          operador_id: payload.operador_id,
+          updated_at: new Date().toISOString(),
+        };
+        replacements.push({ id: existingOc.id, data: updateData });
         seenInBatch.add(item.id_ocorrencia);
         result.replaced++;
-
-        // Adicionar para UPDATE no Supabase
-        updatePayloads.push({
-          id: existingOc.id,
-          data: {
-            municipio: payload.municipio,
-            cabo_primaria: payload.cabo_primaria,
-            at: payload.at,
-            contratada: payload.contratada,
-            nome_at: payload.nome_at,
-            operador_id: payload.operador_id,
-            updated_at: new Date().toISOString(),
-          },
-        });
+        updatePayloads.push({ id: existingOc.id, data: updateData });
       } else {
         result.skipped++;
       }
@@ -378,71 +329,159 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return [...next, ...newOcs];
       });
 
-      // Sincronizar com Supabase
       (async () => {
-        // INSERT novos registros
         if (insertPayloads.length > 0) {
-          const { error } = await supabase
-            .from('ocorrencias')
-            .insert(insertPayloads);
-          if (error) console.error('Erro ao inserir ocorrências:', error);
+          const { error } = await supabase.from('ocorrencias').insert(insertPayloads);
+          if (error) console.error('[Data] importOcorrencias insert:', error);
         }
-
-        // UPDATE registros existentes
         for (const up of updatePayloads) {
-          const { error } = await supabase
-            .from('ocorrencias')
-            .update(up.data)
-            .eq('id', up.id);
-          if (error) console.error('Erro ao atualizar ocorrência:', error);
+          const { error } = await supabase.from('ocorrencias').update(up.data).eq('id', up.id);
+          if (error) console.error('[Data] importOcorrencias update:', error);
         }
       })();
     }
 
     return result;
-  }, [ocorrencias]);
+  }, [ocorrencias, user]);
 
   const updateOcorrencia = useCallback((id: string, data: Partial<Ocorrencia>) => {
-    // Atualizar localmente
     setOcorrencias(prev => prev.map(o => o.id === id ? { ...o, ...data, updated_at: new Date().toISOString() } : o));
 
-    // Sincronizar com Supabase
     (async () => {
-      const updatePayload: any = {
-        updated_at: new Date().toISOString(),
-      };
-      if (data.municipio !== undefined) updatePayload.municipio = data.municipio;
-      if (data.cabo_primaria !== undefined) updatePayload.cabo_primaria = data.cabo_primaria;
-      if (data.at !== undefined) updatePayload.at = data.at;
-      if (data.nome_at !== undefined) updatePayload.nome_at = data.nome_at;
-      if (data.contratada !== undefined) updatePayload.contratada = data.contratada;
-      if (data.operador_id !== undefined) updatePayload.operador_id = data.operador_id;
-      if (data.status !== undefined) updatePayload.status = data.status;
+      const payload: any = { updated_at: new Date().toISOString() };
+      if (data.municipio !== undefined) payload.municipio = data.municipio;
+      if (data.cabo_primaria !== undefined) payload.cabo_primaria = data.cabo_primaria;
+      if (data.at !== undefined) payload.at = data.at;
+      if (data.nome_at !== undefined) payload.nome_at = data.nome_at;
+      if (data.contratada !== undefined) payload.contratada = data.contratada;
+      if (data.operador_id !== undefined) payload.operador_id = data.operador_id;
+      if (data.status !== undefined) payload.status = data.status;
 
-      const { error } = await supabase
-        .from('ocorrencias')
-        .update(updatePayload)
-        .eq('id', id);
-
-      if (error) console.error('Erro ao atualizar ocorrência:', error);
+      const { error } = await supabase.from('ocorrencias').update(payload).eq('id', id);
+      if (error) console.error('[Data] updateOcorrencia:', error);
     })();
   }, []);
 
+  const vincularEquipe = useCallback((ocorrenciaId: string, equipeId: string | null) => {
+    const eq = equipeId ? equipes.find(e => e.id === equipeId) : undefined;
+    setOcorrencias(prev => prev.map(o =>
+      o.id === ocorrenciaId ? { ...o, equipe_id: equipeId, equipe: eq, updated_at: new Date().toISOString() } : o
+    ));
+
+    (async () => {
+      const { error } = await supabase.from('ocorrencias')
+        .update({ equipe_id: equipeId, updated_at: new Date().toISOString() })
+        .eq('id', ocorrenciaId);
+      if (error) console.error('[Data] vincularEquipe:', error);
+    })();
+  }, [equipes]);
+
+  const designarOperador = useCallback((ocorrenciaId: string, operadorId: string | null) => {
+    setOcorrencias(prev => prev.map(o =>
+      o.id === ocorrenciaId ? { ...o, assigned_to: operadorId, updated_at: new Date().toISOString() } : o
+    ));
+
+    (async () => {
+      const { error } = await supabase.from('ocorrencias')
+        .update({ assigned_to: operadorId, updated_at: new Date().toISOString() })
+        .eq('id', ocorrenciaId);
+      if (error) console.error('[Data] designarOperador:', error);
+    })();
+  }, []);
+
+  const finalizarOcorrencia = useCallback((id: string, userId: string) => {
+    const oc = ocorrencias.find(o => o.id === id);
+    const now = new Date().toISOString();
+    setOcorrencias(prev => prev.map(o =>
+      o.id === id ? {
+        ...o,
+        status: 'FINALIZADA' as OcorrenciaStatus,
+        finalized_at: now,
+        finalized_by: userId,
+        updated_at: now,
+      } : o
+    ));
+
+    if (oc) logAction('FINALIZACAO', 'OCORRENCIA', id, oc.id_ocorrencia, 'Ocorrência finalizada');
+
+    (async () => {
+      const { error } = await supabase.from('ocorrencias')
+        .update({ status: 'FINALIZADA', finalized_at: now, finalized_by: userId, updated_at: now })
+        .eq('id', id);
+      if (error) console.error('[Data] finalizarOcorrencia:', error);
+    })();
+  }, [ocorrencias, logAction]);
+
+  const reabrirOcorrencia = useCallback((id: string, userId: string) => {
+    const oc = ocorrencias.find(o => o.id === id);
+    const now = new Date().toISOString();
+    setOcorrencias(prev => prev.map(o =>
+      o.id === id ? {
+        ...o,
+        status: 'EM_ANDAMENTO' as OcorrenciaStatus,
+        finalized_at: null,
+        finalized_by: null,
+        reopened_at: now,
+        reopened_by: userId,
+        updated_at: now,
+      } : o
+    ));
+
+    if (oc) logAction('REABERTURA', 'OCORRENCIA', id, oc.id_ocorrencia, 'Ocorrência reaberta');
+
+    (async () => {
+      const { error } = await supabase.from('ocorrencias')
+        .update({
+          status: 'EM_ANDAMENTO',
+          finalized_at: null,
+          finalized_by: null,
+          reopened_at: now,
+          reopened_by: userId,
+          updated_at: now,
+        })
+        .eq('id', id);
+      if (error) console.error('[Data] reabrirOcorrencia:', error);
+    })();
+  }, [ocorrencias, logAction]);
+
+  const deleteOcorrencia = useCallback((id: string) => {
+    setOcorrencias(prev => prev.filter(o => o.id !== id));
+
+    (async () => {
+      const { error } = await supabase.from('ocorrencias').delete().eq('id', id);
+      if (error) console.error('[Data] deleteOcorrencia:', error);
+    })();
+  }, []);
+
+  // ─── Equipes ───────────────────────────────────────────────────────────────
+
   const addEquipe = useCallback((nome: string): Equipe => {
-    const eq: Equipe = { id: uid(), nome, ativa: true, created_at: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const eq: Equipe = { id: crypto.randomUUID(), nome, ativa: true, created_at: now, updated_at: now };
     setEquipes(prev => [...prev, eq]);
-    logAction('CRIACAO', 'EQUIPE', eq.id, nome, `Nova equipe criada`);
+    logAction('CRIACAO', 'EQUIPE', eq.id, nome, 'Nova equipe criada');
+
+    (async () => {
+      const { error } = await supabase.from('equipes').insert({ id: eq.id, nome, ativa: true });
+      if (error) console.error('[Data] addEquipe:', error);
+    })();
+
     return eq;
   }, [logAction]);
 
   const updateEquipe = useCallback((id: string, data: Partial<Equipe>) => {
     const equipe = equipes.find(e => e.id === id);
-    setEquipes(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+    setEquipes(prev => prev.map(e => e.id === id ? { ...e, ...data, updated_at: new Date().toISOString() } : e));
 
-    if (equipe) {
-      const novoNome = data.nome || equipe.nome;
-      logAction('ATUALIZACAO', 'EQUIPE', id, novoNome, `Equipe atualizada`);
-    }
+    if (equipe) logAction('ATUALIZACAO', 'EQUIPE', id, data.nome ?? equipe.nome, 'Equipe atualizada');
+
+    (async () => {
+      const payload: any = { updated_at: new Date().toISOString() };
+      if (data.nome !== undefined) payload.nome = data.nome;
+      if (data.ativa !== undefined) payload.ativa = data.ativa;
+      const { error } = await supabase.from('equipes').update(payload).eq('id', id);
+      if (error) console.error('[Data] updateEquipe:', error);
+    })();
   }, [equipes, logAction]);
 
   const deleteEquipe = useCallback((id: string) => {
@@ -450,24 +489,54 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEquipes(prev => prev.filter(e => e.id !== id));
     setProfiles(prev => prev.map(p => p.equipe_id === id ? { ...p, equipe_id: null } : p));
 
-    if (equipe) {
-      logAction('EXCLUSAO', 'EQUIPE', id, equipe.nome, `Equipe deletada`);
-    }
+    if (equipe) logAction('EXCLUSAO', 'EQUIPE', id, equipe.nome, 'Equipe deletada');
+
+    (async () => {
+      // Desassociar perfis antes de deletar (FK constraint)
+      const { error: nullErr } = await supabase.from('profiles')
+        .update({ equipe_id: null })
+        .eq('equipe_id', id);
+      if (nullErr) console.error('[Data] deleteEquipe nullify profiles:', nullErr);
+
+      const { error } = await supabase.from('equipes').delete().eq('id', id);
+      if (error) console.error('[Data] deleteEquipe:', error);
+    })();
   }, [equipes, logAction]);
 
+  // ─── Tipos de Serviço ──────────────────────────────────────────────────────
+
   const addTipoServico = useCallback((nome: string): TipoServico => {
-    const ts: TipoServico = { id: uid(), nome, ativo: true, created_at: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const ts: TipoServico = { id: crypto.randomUUID(), nome, descricao: null, ativo: true, created_at: now, updated_at: now };
     setTiposServico(prev => [...prev, ts]);
+
+    (async () => {
+      const { error } = await supabase.from('tipos_servico').insert({ id: ts.id, nome, descricao: null, ativo: true });
+      if (error) console.error('[Data] addTipoServico:', error);
+    })();
+
     return ts;
   }, []);
 
   const updateTipoServico = useCallback((id: string, data: Partial<TipoServico>) => {
-    setTiposServico(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
+    setTiposServico(prev => prev.map(t => t.id === id ? { ...t, ...data, updated_at: new Date().toISOString() } : t));
+
+    (async () => {
+      const payload: any = { updated_at: new Date().toISOString() };
+      if (data.nome !== undefined) payload.nome = data.nome;
+      if (data.descricao !== undefined) payload.descricao = data.descricao;
+      if (data.ativo !== undefined) payload.ativo = data.ativo;
+      const { error } = await supabase.from('tipos_servico').update(payload).eq('id', id);
+      if (error) console.error('[Data] updateTipoServico:', error);
+    })();
   }, []);
+
+  // ─── Serviços ──────────────────────────────────────────────────────────────
 
   const addServico = useCallback((data: Partial<ServicoOcorrencia>): ServicoOcorrencia => {
     const ts = tiposServico.find(t => t.id === data.tipo_servico_id);
     const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
     const sv: ServicoOcorrencia = {
       id: newId,
       ocorrencia_id: data.ocorrencia_id || '',
@@ -477,42 +546,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
       status_item: data.status_item || 'Regularizado',
       ordem: data.ordem || 1,
       created_by: data.created_by || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     };
     setServicos(prev => [...prev, sv]);
-    // auto set status to EM_ANDAMENTO
     setOcorrencias(prev => prev.map(o =>
       o.id === data.ocorrencia_id && o.status === 'PENDENTE'
-        ? { ...o, status: 'EM_ANDAMENTO' as OcorrenciaStatus, updated_at: new Date().toISOString() }
+        ? { ...o, status: 'EM_ANDAMENTO' as OcorrenciaStatus, updated_at: now }
         : o
     ));
 
-    // Salvar no Supabase
     (async () => {
-      const { error } = await supabase
-        .from('servicos')
-        .insert({
-          id: newId,
-          ocorrencia_id: data.ocorrencia_id,
-          tipo_servico_id: data.tipo_servico_id,
-          observacao: data.observacao || null,
-          status_item: data.status_item || 'Regularizado',
-          ordem: data.ordem || 1,
-          created_by: data.created_by || null,
-        });
+      const { error } = await supabase.from('servicos').insert({
+        id: newId,
+        ocorrencia_id: data.ocorrencia_id,
+        tipo_servico_id: data.tipo_servico_id,
+        observacao: data.observacao || null,
+        status_item: data.status_item || 'Regularizado',
+        ordem: data.ordem || 1,
+        created_by: data.created_by || null,
+      });
+      if (error) { console.error('[Data] addServico:', error); return; }
 
-      if (error) console.error('Erro ao adicionar serviço:', error);
-
-      // Atualizar status da ocorrência se necessário
       const oc = ocorrencias.find(o => o.id === data.ocorrencia_id);
       if (oc && oc.status === 'PENDENTE') {
-        const { error: updateError } = await supabase
-          .from('ocorrencias')
-          .update({ status: 'EM_ANDAMENTO', updated_at: new Date().toISOString() })
+        const { error: updateError } = await supabase.from('ocorrencias')
+          .update({ status: 'EM_ANDAMENTO', updated_at: now })
           .eq('id', data.ocorrencia_id);
-
-        if (updateError) console.error('Erro ao atualizar status:', updateError);
+        if (updateError) console.error('[Data] addServico status update:', updateError);
       }
     })();
 
@@ -526,20 +587,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ...s, ...data, tipo_servico: ts, updated_at: new Date().toISOString() };
     }));
 
-    // Sincronizar com Supabase
     (async () => {
-      const updatePayload: any = { updated_at: new Date().toISOString() };
-      if (data.tipo_servico_id !== undefined) updatePayload.tipo_servico_id = data.tipo_servico_id;
-      if (data.observacao !== undefined) updatePayload.observacao = data.observacao;
-      if (data.status_item !== undefined) updatePayload.status_item = data.status_item;
-      if (data.ordem !== undefined) updatePayload.ordem = data.ordem;
+      const payload: any = { updated_at: new Date().toISOString() };
+      if (data.tipo_servico_id !== undefined) payload.tipo_servico_id = data.tipo_servico_id;
+      if (data.observacao !== undefined) payload.observacao = data.observacao;
+      if (data.status_item !== undefined) payload.status_item = data.status_item;
+      if (data.ordem !== undefined) payload.ordem = data.ordem;
 
-      const { error } = await supabase
-        .from('servicos')
-        .update(updatePayload)
-        .eq('id', id);
-
-      if (error) console.error('Erro ao atualizar serviço:', error);
+      const { error } = await supabase.from('servicos').update(payload).eq('id', id);
+      if (error) console.error('[Data] updateServico:', error);
     })();
   }, [tiposServico]);
 
@@ -547,18 +603,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setFotosServico(prev => prev.filter(f => f.servico_id !== id));
     setServicos(prev => prev.filter(s => s.id !== id));
 
-    // Sincronizar com Supabase
     (async () => {
-      const { error } = await supabase
-        .from('servicos')
-        .delete()
-        .eq('id', id);
-
-      if (error) console.error('Erro ao deletar serviço:', error);
+      const { error } = await supabase.from('servicos').delete().eq('id', id);
+      if (error) console.error('[Data] deleteServico:', error);
     })();
   }, []);
 
-  const placeholderImg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk0YTNiOCI+Rm90bzwvdGV4dD48L3N2Zz4=';
+  // ─── Fotos ─────────────────────────────────────────────────────────────────
+
 
   const addFotoServico = useCallback((data: Partial<FotoServico>): FotoServico => {
     const newId = crypto.randomUUID();
@@ -571,26 +623,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       mime_type: data.mime_type || null,
       ordem: data.ordem || 1,
       created_at: new Date().toISOString(),
-      url: data.url || placeholderImg,
+      url: data.url || PLACEHOLDER_IMG,
     };
     setFotosServico(prev => [...prev, f]);
 
-    // Salvar no Supabase
     (async () => {
-      const { error } = await supabase
-        .from('fotos_servico')
-        .insert({
-          id: newId,
-          servico_id: data.servico_id,
-          tipo_foto: data.tipo_foto || 'antes',
-          storage_path: data.storage_path || '',
-          file_name: data.file_name || null,
-          mime_type: data.mime_type || null,
-          url: data.url || null,
-          ordem: data.ordem || 1,
-        });
-
-      if (error) console.error('Erro ao adicionar foto de serviço:', error);
+      const { error } = await supabase.from('fotos_servico').insert({
+        id: newId,
+        servico_id: data.servico_id,
+        tipo_foto: data.tipo_foto || 'antes',
+        storage_path: data.storage_path || '',
+        file_name: data.file_name || null,
+        mime_type: data.mime_type || null,
+        url: data.url || null,
+        ordem: data.ordem || 1,
+      });
+      if (error) console.error('[Data] addFotoServico:', error);
     })();
 
     return f;
@@ -599,14 +647,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deleteFotoServico = useCallback((id: string) => {
     setFotosServico(prev => prev.filter(f => f.id !== id));
 
-    // Sincronizar com Supabase
     (async () => {
-      const { error } = await supabase
-        .from('fotos_servico')
-        .delete()
-        .eq('id', id);
-
-      if (error) console.error('Erro ao deletar foto de serviço:', error);
+      const { error } = await supabase.from('fotos_servico').delete().eq('id', id);
+      if (error) console.error('[Data] deleteFotoServico:', error);
     })();
   }, []);
 
@@ -621,26 +664,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       mime_type: data.mime_type || null,
       ordem: data.ordem || 1,
       created_at: new Date().toISOString(),
-      url: data.url || placeholderImg,
+      url: data.url || PLACEHOLDER_IMG,
     };
     setFotosFinais(prev => [...prev, f]);
 
-    // Salvar no Supabase
     (async () => {
-      const { error } = await supabase
-        .from('fotos_finais')
-        .insert({
-          id: newId,
-          ocorrencia_id: data.ocorrencia_id,
-          categoria: data.categoria || 'retirada_fios',
-          storage_path: data.storage_path || '',
-          file_name: data.file_name || null,
-          mime_type: data.mime_type || null,
-          url: data.url || null,
-          ordem: data.ordem || 1,
-        });
-
-      if (error) console.error('Erro ao adicionar foto final:', error);
+      const { error } = await supabase.from('fotos_finais').insert({
+        id: newId,
+        ocorrencia_id: data.ocorrencia_id,
+        categoria: data.categoria || 'retirada_fios',
+        storage_path: data.storage_path || '',
+        file_name: data.file_name || null,
+        mime_type: data.mime_type || null,
+        url: data.url || null,
+        ordem: data.ordem || 1,
+      });
+      if (error) console.error('[Data] addFotoFinal:', error);
     })();
 
     return f;
@@ -649,205 +688,95 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deleteFotoFinal = useCallback((id: string) => {
     setFotosFinais(prev => prev.filter(f => f.id !== id));
 
-    // Sincronizar com Supabase
     (async () => {
-      const { error } = await supabase
-        .from('fotos_finais')
-        .delete()
-        .eq('id', id);
-
-      if (error) console.error('Erro ao deletar foto final:', error);
+      const { error } = await supabase.from('fotos_finais').delete().eq('id', id);
+      if (error) console.error('[Data] deleteFotoFinal:', error);
     })();
   }, []);
 
-  const finalizarOcorrencia = useCallback((id: string, userId: string) => {
-    const oc = ocorrencias.find(o => o.id === id);
-    setOcorrencias(prev => prev.map(o =>
-      o.id === id ? {
-        ...o, status: 'FINALIZADA' as OcorrenciaStatus,
-        finalized_at: new Date().toISOString(),
-        finalized_by: userId,
-        updated_at: new Date().toISOString(),
-      } : o
-    ));
+  // ─── Profiles ──────────────────────────────────────────────────────────────
+  // RISCO: criação de usuário via frontend não é suportada sem service_role key.
+  // addProfile apenas insere na tabela profiles; se o auth.users correspondente
+  // não existir, o INSERT vai falhar por FK constraint. Implementar via Edge Function.
+  const addProfile = useCallback((data: { nome: string; email: string; role: UserRole; equipe_id: string | null }): Profile => {
+    const now = new Date().toISOString();
+    const profile: Profile = {
+      id: crypto.randomUUID(),
+      nome: data.nome,
+      email: data.email,
+      role: data.role,
+      equipe_id: data.equipe_id,
+      must_change_password: true,
+      created_at: now,
+      updated_at: now,
+    };
+    setProfiles(prev => [...prev, profile]);
+    logAction('CRIACAO', 'USUARIO', profile.id, data.nome, `Novo usuário criado com perfil ${data.role}`);
 
-    if (oc) {
-      logAction('FINALIZACAO', 'OCORRENCIA', id, oc.id_ocorrencia, `Ocorrência finalizada`);
-    }
-
-    // Sincronizar com Supabase
     (async () => {
-      const { error } = await supabase
-        .from('ocorrencias')
-        .update({
-          status: 'FINALIZADA',
-          created_by: userId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-
-      if (error) console.error('Erro ao finalizar ocorrência:', error);
+      const { error } = await supabase.from('profiles').insert({
+        id: profile.id,
+        nome: data.nome,
+        email: data.email,
+        role: data.role,
+        equipe_id: data.equipe_id,
+        must_change_password: true,
+      });
+      if (error) console.error('[Data] addProfile (requer Edge Function para criar auth.user):', error);
     })();
-  }, [ocorrencias, logAction]);
 
-  const reabrirOcorrencia = useCallback((id: string, userId: string) => {
-    const oc = ocorrencias.find(o => o.id === id);
-    setOcorrencias(prev => prev.map(o =>
-      o.id === id ? {
-        ...o, status: 'EM_ANDAMENTO' as OcorrenciaStatus,
-        finalized_at: null, finalized_by: null,
-        reopened_at: new Date().toISOString(),
-        reopened_by: userId,
-        updated_at: new Date().toISOString(),
-      } : o
-    ));
-
-    if (oc) {
-      logAction('REABERTURA', 'OCORRENCIA', id, oc.id_ocorrencia, `Ocorrência reabierta`);
-    }
-
-    // Sincronizar com Supabase
-    (async () => {
-      const { error } = await supabase
-        .from('ocorrencias')
-        .update({
-          status: 'EM_ANDAMENTO',
-          finalized_at: null,
-          finalized_by: null,
-          reopened_at: new Date().toISOString(),
-          reopened_by: userId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-
-      if (error) console.error('Erro ao reabrir ocorrência:', error);
-    })();
-  }, [ocorrencias, logAction]);
+    return profile;
+  }, [logAction]);
 
   const updateProfile = useCallback((id: string, data: Partial<Profile>) => {
     const profile = profiles.find(p => p.id === id);
-    setProfiles(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+    setProfiles(prev => prev.map(p => p.id === id ? { ...p, ...data, updated_at: new Date().toISOString() } : p));
 
     if (profile) {
       const detalhes = data.must_change_password ? 'Senha resetada' : 'Perfil atualizado';
       logAction('ATUALIZACAO', 'USUARIO', id, profile.nome, detalhes);
     }
 
-    // Sincronizar com Supabase — nunca enviar campos sensíveis
     (async () => {
-      const { password: _omit, ...safeData } = data as Profile & { password?: string };
-      const { error } = await supabase
-        .from('profiles')
-        .update(safeData)
-        .eq('id', id);
+      const payload: any = { updated_at: new Date().toISOString() };
+      if (data.nome !== undefined) payload.nome = data.nome;
+      if (data.role !== undefined) payload.role = data.role;
+      if (data.equipe_id !== undefined) payload.equipe_id = data.equipe_id;
+      if (data.must_change_password !== undefined) payload.must_change_password = data.must_change_password;
 
-      if (error) console.error('Erro ao atualizar perfil:', error);
+      const { error } = await supabase.from('profiles').update(payload).eq('id', id);
+      if (error) console.error('[Data] updateProfile:', error);
     })();
   }, [profiles, logAction]);
-
-  const addProfile = useCallback((data: { nome: string; email: string; role: UserRole; equipe_id: string | null }): Profile => {
-    const profile: Profile = {
-      id: uid(),
-      nome: data.nome,
-      email: data.email,
-      role: data.role,
-      equipe_id: data.equipe_id,
-      must_change_password: true,
-      created_at: new Date().toISOString(),
-    };
-    setProfiles(prev => [...prev, profile]);
-    logAction('CRIACAO', 'USUARIO', profile.id, data.nome, `Novo usuário criado com perfil ${data.role}`);
-    return profile;
-  }, [logAction]);
 
   const deleteProfile = useCallback((id: string) => {
     const profile = profiles.find(p => p.id === id);
     setProfiles(prev => prev.filter(p => p.id !== id));
 
-    if (profile) {
-      logAction('EXCLUSAO', 'USUARIO', id, profile.nome, `Usuário deletado`);
-    }
+    if (profile) logAction('EXCLUSAO', 'USUARIO', id, profile.nome, 'Usuário deletado');
 
-    // Sincronizar com Supabase
     (async () => {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id);
-
-      if (error) console.error('Erro ao deletar perfil:', error);
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) console.error('[Data] deleteProfile:', error);
     })();
   }, [profiles, logAction]);
 
-  const vincularEquipe = useCallback((ocorrenciaId: string, equipeId: string | null) => {
-    const eq = equipeId ? equipes.find(e => e.id === equipeId) : null;
-
-    // Atualizar localmente
-    setOcorrencias(prev => prev.map(o =>
-      o.id === ocorrenciaId ? { ...o, equipe_id: equipeId, equipe: eq || undefined, updated_at: new Date().toISOString() } : o
-    ));
-
-    // Sincronizar com Supabase
-    (async () => {
-      const { error } = await supabase
-        .from('ocorrencias')
-        .update({
-          equipe_id: equipeId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', ocorrenciaId);
-
-      if (error) console.error('Erro ao vincular equipe:', error);
-    })();
-  }, [equipes]);
-
-  const designarOperador = useCallback((ocorrenciaId: string, operadorId: string | null) => {
-    setOcorrencias(prev => prev.map(o =>
-      o.id === ocorrenciaId ? { ...o, assigned_to: operadorId, updated_at: new Date().toISOString() } : o
-    ));
-
-    // Sincronizar com Supabase
-    (async () => {
-      const { error } = await supabase
-        .from('ocorrencias')
-        .update({
-          operador_id: operadorId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', ocorrenciaId);
-
-      if (error) console.error('Erro ao designar operador:', error);
-    })();
-  }, []);
-
-  const deleteOcorrencia = useCallback((id: string) => {
-    setOcorrencias(prev => prev.filter(o => o.id !== id));
-
-    // Sincronizar com Supabase
-    (async () => {
-      const { error } = await supabase
-        .from('ocorrencias')
-        .delete()
-        .eq('id', id);
-
-      if (error) console.error('Erro ao deletar ocorrência:', error);
-    })();
-  }, []);
+  // ──────────────────────────────────────────────────────────────────────────
 
   const value = useMemo(() => ({
     ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
     addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
     addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
-    finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile, vincularEquipe, designarOperador,
-    deleteOcorrencia,
+    finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile,
+    vincularEquipe, designarOperador, deleteOcorrencia,
   }), [
     ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
     addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
     addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
-    finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile, vincularEquipe, designarOperador,
-    deleteOcorrencia,
+    finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile,
+    vincularEquipe, designarOperador, deleteOcorrencia,
   ]);
 
   return (

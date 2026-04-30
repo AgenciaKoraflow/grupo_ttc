@@ -42,7 +42,6 @@ const TIPOS_LOG: Record<LogTipo, { label: string; color: string; icon: React.Ele
 const CATEGORIAS: Record<LogCategoria, string> = {
   AUTENTICACAO: 'Autenticação',
   OCORRENCIA: 'Ocorrência',
-  SERVICO: 'Serviço',
   EQUIPE: 'Equipe',
   USUARIO: 'Usuário',
   TIPO_SERVICO: 'Tipo de Serviço',
@@ -222,9 +221,11 @@ function LogsPage() {
                 </TableRow>
               ) : filteredLogs.slice(0, 100).map(log => {
                 const tipoConfig = TIPOS_LOG[log.tipo];
-                const roleColors = {
+                const roleColors: Record<string, string> = {
                   admin: 'bg-purple-100 text-purple-700',
-                  operador: 'bg-blue-100 text-blue-700',
+                  supervisor: 'bg-blue-100 text-blue-700',
+                  operador: 'bg-green-100 text-green-700',
+
                   sistema: 'bg-gray-100 text-gray-700',
                 };
                 return (

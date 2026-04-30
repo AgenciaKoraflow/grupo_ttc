@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,24 +49,28 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function UsuariosPage() {
+  const { canManageUsers } = useAuth();
   const { profiles, equipes, addProfile, updateProfile, deleteProfile } = useData();
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openResetPassword, setOpenResetPassword] = useState(false);
 
-  const [formData, setFormData] = useState({ nome: '', email: '', role: 'operador' as const, equipe_id: '' });
+  const [formData, setFormData] = useState({ nome: '', email: '', role: 'operador' as 'admin' | 'supervisor' | 'operador', equipe_id: '' });
   const [selectedUserId, setSelectedUserId] = useState('');
 
   const stats = useMemo(() => {
     const admins = profiles.filter(p => p.role === 'admin').length;
+    const supervisores = profiles.filter(p => p.role === 'supervisor').length;
     const operadores = profiles.filter(p => p.role === 'operador').length;
     const comEquipe = profiles.filter(p => p.equipe_id).length;
     const semEquipe = profiles.filter(p => !p.equipe_id).length;
-    return { admins, operadores, comEquipe, semEquipe };
+    return { admins, supervisores, operadores, comEquipe, semEquipe };
   }, [profiles]);
 
   const getInitials = (nome: string) => nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+  const roleHasEquipe = (role: string) => role === 'operador' || role === 'supervisor';
 
   const handleCreateUser = () => {
     if (!formData.nome || !formData.email) return;
@@ -73,7 +78,7 @@ function UsuariosPage() {
       nome: formData.nome,
       email: formData.email,
       role: formData.role,
-      equipe_id: formData.role === 'operador' ? formData.equipe_id || null : null,
+      equipe_id: roleHasEquipe(formData.role) ? formData.equipe_id || null : null,
     });
     setOpenCreate(false);
     setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
@@ -86,7 +91,7 @@ function UsuariosPage() {
       nome: formData.nome,
       email: formData.email,
       role: formData.role,
-      equipe_id: formData.role === 'operador' ? formData.equipe_id || null : null,
+      equipe_id: roleHasEquipe(formData.role) ? formData.equipe_id || null : null,
     });
     setOpenEdit(false);
     setFormData({ nome: '', email: '', role: 'operador', equipe_id: '' });
@@ -134,6 +139,18 @@ function UsuariosPage() {
 
   const selectedUser = selectedUserId ? profiles.find(p => p.id === selectedUserId) : null;
 
+  if (!canManageUsers) {
+    return (
+      <AppLayout>
+        <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <Shield className="h-12 w-12 text-muted-foreground/30" />
+          <p className="text-lg font-semibold text-muted-foreground">Acesso restrito</p>
+          <p className="text-sm text-muted-foreground/70">Apenas administradores podem gerenciar usuários.</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6 max-w-6xl mx-auto">
@@ -160,8 +177,8 @@ function UsuariosPage() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <StatCard label="Total de Usuários" value={profiles.length} icon={Users} color={C.primary} />
           <StatCard label="Administradores" value={stats.admins} icon={Shield} color={C.admin} />
+          <StatCard label="Supervisores" value={stats.supervisores} icon={UserCog} color={C.warning} />
           <StatCard label="Operadores" value={stats.operadores} icon={Users} color={C.success} />
-          <StatCard label="Sem Equipe" value={stats.semEquipe} icon={Building2} color={C.muted} />
         </div>
 
         <div className="border border-border/60 rounded-xl overflow-hidden bg-card" style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.06), 0 4px 12px oklch(0.115 0.028 252 / 0.04)' }}>
@@ -199,8 +216,14 @@ function UsuariosPage() {
                     <TableCell className="text-muted-foreground text-sm">{p.email}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={p.role === 'admin' ? 'default' : 'secondary'}
-                        className={cn('text-xs capitalize', p.role === 'admin' && 'bg-purple-100 text-purple-700')}
+                        variant="secondary"
+                        className={cn(
+                          'text-xs capitalize',
+                          p.role === 'admin' && 'bg-purple-100 text-purple-700',
+                          p.role === 'supervisor' && 'bg-blue-100 text-blue-700',
+                          p.role === 'operador' && 'bg-green-100 text-green-700',
+
+                        )}
                       >
                         <Shield className="h-3 w-3 mr-1" />
                         {p.role}
@@ -290,14 +313,16 @@ function UsuariosPage() {
               <select
                 id="role"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: e.target.value === 'operador' ? formData.equipe_id : '' })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: roleHasEquipe(e.target.value) ? formData.equipe_id : '' })}
                 className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
               >
-                <option value="operador">Operador</option>
-                <option value="admin">Administrador</option>
+
+                <option value="operador">Operador — criar, editar, reabrir</option>
+                <option value="supervisor">Supervisor — criar, editar, excluir</option>
+                <option value="admin">Administrador — acesso total</option>
               </select>
             </div>
-            {formData.role === 'operador' && (
+            {roleHasEquipe(formData.role) && (
               <div>
                 <Label htmlFor="equipe" className="text-sm font-medium">Equipe</Label>
                 <select
@@ -358,14 +383,16 @@ function UsuariosPage() {
               <select
                 id="edit-role"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: e.target.value === 'operador' ? formData.equipe_id : '' })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as any, equipe_id: roleHasEquipe(e.target.value) ? formData.equipe_id : '' })}
                 className="w-full mt-1.5 px-3 py-2 rounded-lg border border-border/80 bg-background text-sm"
               >
-                <option value="operador">Operador</option>
-                <option value="admin">Administrador</option>
+
+                <option value="operador">Operador — criar, editar, reabrir</option>
+                <option value="supervisor">Supervisor — criar, editar, excluir</option>
+                <option value="admin">Administrador — acesso total</option>
               </select>
             </div>
-            {formData.role === 'operador' && (
+            {roleHasEquipe(formData.role) && (
               <div>
                 <Label htmlFor="edit-equipe" className="text-sm font-medium">Equipe</Label>
                 <select
