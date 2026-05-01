@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { TablePagination } from "@/components/TablePagination";
 
 export const Route = createFileRoute("/ocorrencias/")({
   component: OcorrenciasPage,
@@ -579,7 +580,7 @@ function OcorrenciasPage() {
     return result;
   }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, search]);
 
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
 
   useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter]);
@@ -895,38 +896,11 @@ function OcorrenciasPage() {
         </div>
 
         {/* Paginação */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between animate-fade-in-up" role="navigation" aria-label="Paginação">
-            <p className="text-xs text-muted-foreground">
-              Mostrando {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs px-3"
-                disabled={page === 0}
-                onClick={() => setPage(p => p - 1)}
-                aria-label="Página anterior"
-              >
-                ← Anterior
-              </Button>
-              <span className="text-xs text-muted-foreground px-2" aria-current="page">
-                {page + 1} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs px-3"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage(p => p + 1)}
-                aria-label="Próxima página"
-              >
-                Próxima →
-              </Button>
-            </div>
-          </div>
-        )}
+        <TablePagination
+          page={page} totalPages={totalPages} total={filtered.length}
+          pageSize={PAGE_SIZE} onPageChange={setPage}
+          className="animate-fade-in-up"
+        />
       </div>
 
       {/* Dialog de importação */}

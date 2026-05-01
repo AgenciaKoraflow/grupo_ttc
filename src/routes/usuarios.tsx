@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { TablePagination } from "@/components/TablePagination";
 
 export const Route = createFileRoute("/usuarios")({
   component: UsuariosPage,
@@ -67,6 +68,14 @@ function UsuariosPage() {
   const [copied, setCopied] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState('');
+
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(0);
+  const paginatedProfiles = useMemo(
+    () => profiles.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [profiles, page],
+  );
+  const totalPages = Math.ceil(profiles.length / PAGE_SIZE);
 
   const stats = useMemo(() => {
     const admins = profiles.filter(p => p.role === 'admin').length;
@@ -191,7 +200,7 @@ function UsuariosPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -219,16 +228,17 @@ function UsuariosPage() {
           <StatCard label="Operadores" value={stats.operadores} icon={Users} color={C.success} />
         </div>
 
-        <div className="border border-border/60 rounded-xl overflow-hidden bg-card" style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.06), 0 4px 12px oklch(0.115 0.028 252 / 0.04)' }}>
+        <div className="border border-border/60 rounded-xl bg-card" style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.06), 0 4px 12px oklch(0.115 0.028 252 / 0.04)' }}>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead>Usuário</TableHead>
+                <TableHead className="pl-4">Usuário</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Perfil</TableHead>
                 <TableHead>Equipe</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right pr-4">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -238,17 +248,17 @@ function UsuariosPage() {
                     Nenhum usuário encontrado
                   </TableCell>
                 </TableRow>
-              ) : profiles.map(p => {
+              ) : paginatedProfiles.map(p => {
                 const initials = getInitials(p.nome);
                 return (
                   <TableRow key={p.id}>
-                    <TableCell>
+                    <TableCell className="pl-4">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                           style={{ background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))' }}>
                           {initials}
                         </div>
-                        <span className="font-medium">{p.nome}</span>
+                        <span className="font-medium truncate max-w-[160px]" title={p.nome}>{p.nome}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{p.email}</TableCell>
@@ -256,15 +266,14 @@ function UsuariosPage() {
                       <Badge
                         variant="secondary"
                         className={cn(
-                          'text-xs capitalize',
+                          'text-xs',
                           p.role === 'admin' && 'bg-purple-100 text-purple-700',
                           p.role === 'supervisor' && 'bg-blue-100 text-blue-700',
                           p.role === 'operador' && 'bg-green-100 text-green-700',
-
                         )}
                       >
                         <Shield className="h-3 w-3 mr-1" />
-                        {p.role}
+                        {p.role === 'admin' ? 'Administrador' : p.role === 'supervisor' ? 'Supervisor' : 'Operador'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -314,6 +323,12 @@ function UsuariosPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+          <TablePagination
+            page={page} totalPages={totalPages} total={profiles.length}
+            pageSize={PAGE_SIZE} onPageChange={setPage}
+            className="border-t border-border/60"
+          />
         </div>
       </div>
 

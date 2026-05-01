@@ -1,13 +1,13 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import {
-  LayoutDashboard, FileText, Users, Wrench, Building2, LogOut,
-  PanelLeftClose, PanelLeft, History,
+  LayoutDashboard, FileText, Users, Wrench, Building2, LogOut, History,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarGroup,
   SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarFooter, useSidebar,
 } from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLog } from '@/contexts/LogContext';
 import { cn } from '@/lib/utils';
@@ -34,9 +34,15 @@ const operadorItems = [
   { title: 'Ocorrências', url: '/ocorrencias', icon: FileText },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  supervisor: 'Supervisor',
+  operador: 'Operador',
+};
+
 
 export function AppSidebar() {
-  const { state, toggleSidebar } = useSidebar();
+  const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { user, isAdmin, isSupervisor, isOperador, logout } = useAuth();
   const { addLog } = useLog();
@@ -84,16 +90,8 @@ export function AppSidebar() {
         <div className="flex flex-col items-center justify-center gap-2 px-4 py-3 shrink-0"
           style={{ borderBottom: '1px solid oklch(0.24 0.030 250)' }}
         >
-          <div className="relative w-full flex justify-center">
-            <img src="/logo-ttc.png" alt="Logo TTC" className="h-8 w-auto rounded-lg" style={{ imageRendering: 'auto', maxWidth: '80%' }} />
-            <button
-              onClick={toggleSidebar}
-              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-              aria-expanded={!collapsed}
-              className="absolute right-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-            >
-              {collapsed ? <PanelLeft className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
-            </button>
+          <div className="flex justify-center">
+            <img src="/logo-ttc.png" alt="Logo TTC" className="h-8 w-auto rounded-lg max-w-[80%]" style={{ imageRendering: 'auto' }} />
           </div>
           {!collapsed && (
             <div className="text-center">
@@ -153,17 +151,19 @@ export function AppSidebar() {
         >
           {!collapsed && user && (
             <div className="flex items-center gap-2.5 mb-2.5 px-1">
-              <div
-                className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-white"
+              <Avatar
+                className="h-7 w-7 shrink-0"
                 style={{
                   background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
                 }}
               >
-                {initials}
-              </div>
+                <AvatarFallback className="bg-transparent text-white text-[10px] font-bold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-sidebar-foreground truncate leading-tight">{user.nome}</p>
-                <p className="text-[10px] text-sidebar-foreground/40 capitalize">{user.role}</p>
+                <p className="text-[10px] text-sidebar-foreground/40">{ROLE_LABELS[user.role] ?? user.role}</p>
               </div>
             </div>
           )}

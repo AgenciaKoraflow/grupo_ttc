@@ -1,6 +1,13 @@
 import { useEffect, type ReactNode } from 'react';
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  supervisor: 'Supervisor',
+  operador: 'Operador',
+};
 import { useNavigate } from '@tanstack/react-router';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell } from 'lucide-react';
@@ -72,19 +79,23 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
               {/* Avatar + nome */}
               <div className="flex items-center gap-2.5 pl-1">
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                  aria-hidden="true"
+                <Avatar
+                  className="h-8 w-8 text-xs font-bold text-white shrink-0"
                   style={{
                     background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
                     boxShadow: '0 2px 8px oklch(0.50 0.225 255 / 0.35)',
                   }}
                 >
-                  {initials}
-                </div>
+                  <AvatarFallback
+                    className="bg-transparent text-white text-xs font-bold"
+                    aria-hidden="true"
+                  >
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="hidden sm:block leading-none">
                   <p className="text-sm font-semibold text-foreground leading-tight">{user!.nome.split(' ')[0]}</p>
-                  <p className="text-[10px] text-muted-foreground capitalize" aria-label={`Perfil: ${user!.role}`}>{user!.role}</p>
+                  <p className="text-[10px] text-muted-foreground" aria-label={`Perfil: ${user!.role}`}>{ROLE_LABELS[user!.role] ?? user!.role}</p>
                 </div>
               </div>
             </div>

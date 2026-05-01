@@ -27,6 +27,7 @@ const C = {
 
 import type { LogTipo, LogCategoria, Log } from "@/types";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { TablePagination } from "@/components/TablePagination";
 
 const TIPOS_LOG: Record<LogTipo, { label: string; color: string; icon: React.ElementType }> = {
   LOGIN: { label: 'Login', color: 'bg-green-100 text-green-700', icon: Plus },
@@ -74,6 +75,8 @@ function LogsPage() {
   const [filtroCategoria, setFiltroCategoria] = useState<LogCategoria | 'TODOS'>('TODOS');
   const [filtroPerfil, setFiltroPerfil] = useState<'admin' | 'operador' | 'sistema' | 'TODOS'>('TODOS');
 
+  const [page, setPage] = useState(0);
+
   const sortedLogs = useMemo(() => {
     return [...logs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [logs]);
@@ -90,6 +93,16 @@ function LogsPage() {
       return matchSearch && matchTipo && matchCategoria && matchPerfil;
     });
   }, [sortedLogs, search, filtroTipo, filtroCategoria, filtroPerfil]);
+
+  const PAGE_SIZE = 25;
+
+  useEffect(() => { setPage(0); }, [search, filtroTipo, filtroCategoria, filtroPerfil]);
+
+  const paginatedLogs = useMemo(
+    () => filteredLogs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filteredLogs, page],
+  );
+  const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
 
   const stats = useMemo(() => ({
     total: sortedLogs.length,
@@ -136,7 +149,7 @@ function LogsPage() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 space-y-5 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 space-y-5 max-w-7xl mx-auto">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -253,7 +266,7 @@ function LogsPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : filteredLogs.slice(0, 100).map(log => {
+                ) : paginatedLogs.map(log => {
                   const tipoConfig = TIPOS_LOG[log.tipo];
                   const roleColors: Record<string, string> = {
                     admin: 'bg-purple-100 text-purple-700',
@@ -304,11 +317,11 @@ function LogsPage() {
               </TableBody>
             </Table>
           </div>
-          {filteredLogs.length > 100 && (
-            <div className="p-3 text-center text-sm text-muted-foreground border-t" role="status">
-              Mostrando 100 de {filteredLogs.length} logs · Use a busca para refinar
-            </div>
-          )}
+          <TablePagination
+            page={page} totalPages={totalPages} total={filteredLogs.length}
+            pageSize={PAGE_SIZE} onPageChange={setPage}
+            className="border-t border-border/60"
+          />
         </div>
       </div>
     </AppLayout>

@@ -18,6 +18,7 @@ import { Plus, Pencil, Users, Trash2, Building2, Activity, Clock, CheckCircle } 
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { TablePagination } from "@/components/TablePagination";
 
 export const Route = createFileRoute("/equipes")({
   component: EquipesPage,
@@ -126,11 +127,19 @@ function EquipesPage() {
   };
 
   const getEqStats = (eqId: string) => equipeStats.find(e => e.id === eqId);
+
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(0);
+  const paginatedEquipes = useMemo(
+    () => equipes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [equipes, page],
+  );
+  const totalPages = Math.ceil(equipes.length / PAGE_SIZE);
   const getEquipeName = (eqId: string) => equipes.find(e => e.id === eqId)?.nome;
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -168,28 +177,29 @@ function EquipesPage() {
           <StatCard label="Ocorrências Totais" value={stats.totalOcorrencias} icon={Activity} color={C.muted} />
         </div>
 
-        <div className="border border-border/60 rounded-xl overflow-hidden bg-card" style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.06), 0 4px 12px oklch(0.115 0.028 252 / 0.04)' }}>
+        <div className="border border-border/60 rounded-xl bg-card" style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.06), 0 4px 12px oklch(0.115 0.028 252 / 0.04)' }}>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead>Nome</TableHead>
+                <TableHead className="pl-4">Nome</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-center">Operadores</TableHead>
-                <TableHead className="w-[80px]">Ações</TableHead>
+                <TableHead className="w-[100px] pr-4">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {equipes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                     Nenhuma equipe cadastrada
                   </TableCell>
                 </TableRow>
-              ) : equipes.map(eq => {
+              ) : paginatedEquipes.map(eq => {
                 const s = getEqStats(eq.id);
                 return (
                   <TableRow key={eq.id}>
-                    <TableCell className="font-medium">{eq.nome}</TableCell>
+                    <TableCell className="font-medium pl-4 max-w-[220px]"><span className="truncate block" title={eq.nome}>{eq.nome}</span></TableCell>
                     <TableCell>
                       <Badge 
                         variant={eq.ativa ? 'secondary' : 'outline'} 
@@ -276,6 +286,12 @@ function EquipesPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+          <TablePagination
+            page={page} totalPages={totalPages} total={equipes.length}
+            pageSize={PAGE_SIZE} onPageChange={setPage}
+            className="border-t border-border/60"
+          />
         </div>
 
         {/* Modal Deletar Equipe */}
