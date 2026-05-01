@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
+import { getSignedUrl } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { AppLayout } from "@/components/AppLayout";
@@ -16,6 +18,41 @@ import type { OcorrenciaStatus } from "@/types";
 export const Route = createFileRoute("/ocorrencias/$id/")({
   component: OcorrenciaDetailPage,
 });
+
+function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return Promise.resolve(file);
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const MAX_PX = 1920;
+      let { width, height } = img;
+      if (width <= MAX_PX && height <= MAX_PX && file.size < 500_000) {
+        resolve(file);
+        return;
+      }
+      if (width > MAX_PX || height > MAX_PX) {
+        const ratio = Math.min(MAX_PX / width, MAX_PX / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => resolve(blob
+          ? new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
+          : file),
+        'image/jpeg',
+        0.82,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(file); };
+    img.src = objUrl;
+  });
+}
 
 function StatusBadge({ status }: { status: OcorrenciaStatus }) {
   const map = {
@@ -58,14 +95,18 @@ function OcorrenciaDetailPage() {
   const [fotoContext, setFotoContext] = useState<{ servicoId: string; tipo: 'antes' | 'depois'; isFinal?: boolean; categoria?: 'retirada_fios' | 'ctop' } | null>(null);
   const [fotoZoom, setFotoZoom] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [urlOverrides, setUrlOverrides] = useState<Record<string, string>>({});
+  const refreshingIds = useRef(new Set<string>());
+  const [pendingPreview, setPendingPreview] = useState<{ key: string; url: string } | null>(null);
 
   const oc = ocorrencias.find(o => o.id === id);
 
   if (!oc) return (
     <AppLayout>
-      <div className="p-6 text-center py-20">
-        <p className="text-muted-foreground">Ocorrência não encontrada</p>
-        <Link to="/ocorrencias" className="text-primary text-sm mt-2 inline-block">← Voltar</Link>
+      <div className="p-6 text-center py-20" role="status">
+        <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" aria-hidden="true" />
+        <p className="text-muted-foreground font-medium">Ocorrência não encontrada</p>
+        <Link to="/ocorrencias" className="text-primary text-sm mt-2 inline-block hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">← Voltar para lista</Link>
       </div>
     </AppLayout>
   );
@@ -94,18 +135,27 @@ function OcorrenciaDetailPage() {
     const isHeic = file.type === 'image/heif' || file.type === 'image/heic'
       || file.name.toLowerCase().endsWith('.heif')
       || file.name.toLowerCase().endsWith('.heic');
-    if (!isHeic) return file;
-    if ((window as any).heic2any) {
+    let workFile = file;
+    if (isHeic) {
       try {
-        const blob = await (window as any).heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
-        const outBlob = Array.isArray(blob) ? blob[0] : blob;
-        return new File([outBlob], file.name.replace(/\.hei[cf]$/i, '.jpg'), { type: 'image/jpeg' });
-      } catch {
-        return file;
-      }
+        const { default: heic2any } = await import('heic2any');
+        const result = await heic2any({ blob: file, toType: 'image/jpeg' });
+        const outBlob = Array.isArray(result) ? result[0] : result;
+        workFile = new File([outBlob], file.name.replace(/\.hei[cf]$/i, '.jpg'), { type: 'image/jpeg' });
+      } catch { /* use original on failure */ }
     }
-    return file;
+    return compressImage(workFile);
   };
+
+  const getFotoUrl = (id: string, fallback: string | undefined) =>
+    urlOverrides[id] ?? fallback;
+
+  const handleImgError = useCallback(async (id: string, bucket: string, path: string) => {
+    if (!path || refreshingIds.current.has(id)) return;
+    refreshingIds.current.add(id);
+    const url = await getSignedUrl(bucket, path);
+    if (url) setUrlOverrides(prev => ({ ...prev, [id]: url }));
+  }, []);
 
   const handleZoomFoto = (url: string) => setFotoZoom(url);
 
@@ -122,6 +172,12 @@ function OcorrenciaDetailPage() {
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !fotoContext) return;
+
+    const previewKey = fotoContext.isFinal
+      ? `final-${fotoContext.categoria}`
+      : `${fotoContext.servicoId}-${fotoContext.tipo}`;
+    const previewUrl = URL.createObjectURL(file);
+    setPendingPreview({ key: previewKey, url: previewUrl });
 
     setUploading(true);
     try {
@@ -146,8 +202,11 @@ function OcorrenciaDetailPage() {
       }
     } catch (error) {
       console.error('Erro ao fazer upload da foto:', error);
+      toast.error('Falha no upload', { description: 'Verifique sua conexão e tente novamente.' });
     } finally {
       setUploading(false);
+      URL.revokeObjectURL(previewUrl);
+      setPendingPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       setFotoContext(null);
     }
@@ -180,8 +239,9 @@ function OcorrenciaDetailPage() {
             size="icon"
             className="h-9 w-9 rounded-xl hover:bg-accent"
             onClick={() => navigate({ to: '/ocorrencias' })}
+            aria-label="Voltar para lista de ocorrências"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </Button>
           <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-foreground">{oc.id_ocorrencia}</h1>
@@ -190,8 +250,8 @@ function OcorrenciaDetailPage() {
           <div className="flex flex-wrap gap-2">
             {isAdminOrSupervisor && (
               <Link to="/ocorrencias/$id/relatorio" params={{ id: oc.id }}>
-                <Button variant="outline" size="sm" className="gap-1.5 h-9 font-medium">
-                  <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Relatório</span>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9 font-medium" aria-label="Ver relatório da ocorrência">
+                  <FileText className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Relatório</span>
                 </Button>
               </Link>
             )}
@@ -201,8 +261,9 @@ function OcorrenciaDetailPage() {
                 size="sm"
                 className="gap-1.5 h-9 font-medium"
                 onClick={() => reabrirOcorrencia(oc.id, user?.id || 'sistema')}
+                aria-label="Reabrir ocorrência"
               >
-                <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Reabrir</span>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Reabrir</span>
               </Button>
             )}
             {canDelete && (
@@ -211,8 +272,9 @@ function OcorrenciaDetailPage() {
                 size="sm"
                 className="gap-1.5 h-9 font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
                 onClick={() => setShowExcluir(true)}
+                aria-label="Excluir ocorrência"
               >
-                <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Excluir</span>
+                <Trash2 className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Excluir</span>
               </Button>
             )}
           </div>
@@ -355,9 +417,10 @@ function OcorrenciaDetailPage() {
                         {canEditOcorrencia && !isFinalizada && (
                           <button
                             onClick={() => deleteServico(sv.id)}
-                            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                            aria-label={`Remover serviço: ${sv.tipo_servico?.nome}`}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                         )}
                       </div>
@@ -393,11 +456,12 @@ function OcorrenciaDetailPage() {
                                 <button
                                   onClick={() => handleFotoUpload(sv.id, tipo)}
                                   disabled={!canEditOcorrencia || uploading}
-                                  className="h-20 w-full rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                  aria-label={`Adicionar foto ${tipo === 'antes' ? 'antes' : 'depois'} do serviço`}
+                                  className="h-20 w-full rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}
                                 >
                                   <div className="flex flex-col items-center gap-1.5">
-                                    <Camera className="h-4 w-4 text-muted-foreground/50" />
+                                    <Camera className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
                                     <p className="text-xs text-muted-foreground/60">{uploading ? 'Enviando...' : 'Adicionar foto'}</p>
                                   </div>
                                 </button>
@@ -406,39 +470,59 @@ function OcorrenciaDetailPage() {
                                   {fotos.map(f => (
                                     <div key={f.id} className="relative group">
                                       <img
-                                        src={f.url || ''}
-                                        alt={`Foto ${tipo}`}
-                                        onClick={() => f.url && handleZoomFoto(f.url)}
-                                        className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow"
+                                        src={getFotoUrl(f.id, f.url) || ''}
+                                        alt={`Foto ${tipo === 'antes' ? 'antes' : 'depois'} do serviço`}
+                                        onClick={() => { const u = getFotoUrl(f.id, f.url); if (u) handleZoomFoto(u); }}
+                                        onError={() => handleImgError(f.id, 'fotos-servico', f.storage_path)}
+                                        className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         style={{ boxShadow: '0 2px 8px oklch(0.115 0.028 252 / 0.08)' }}
+                                        tabIndex={0}
+                                        role="button"
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { const u = getFotoUrl(f.id, f.url); if (u) handleZoomFoto(u); } }}
                                       />
                                       {canEditOcorrencia && !isFinalizada && (
                                         <button
                                           onClick={() => deleteFotoServico(f.id)}
-                                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                          aria-label={`Remover foto ${tipo === 'antes' ? 'antes' : 'depois'}`}
+                                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         >
-                                          <X className="h-3 w-3" />
+                                          <X className="h-3 w-3" aria-hidden="true" />
                                         </button>
                                       )}
                                     </div>
                                   ))}
+                                  {pendingPreview?.key === `${sv.id}-${tipo}` && (
+                                    <div className="relative h-20 w-20" role="status" aria-label="Enviando foto...">
+                                      <img src={pendingPreview.url} alt="Foto sendo enviada" className="h-20 w-20 rounded-xl object-cover border border-border/60 opacity-50" />
+                                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/20">
+                                        <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" aria-hidden="true" />
+                                      </div>
+                                    </div>
+                                  )}
                                   {canEditOcorrencia && !isFinalizada && (
                                     <button
                                       onClick={() => handleFotoUpload(sv.id, tipo)}
                                       disabled={uploading}
-                                      className="h-20 w-20 rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                      aria-label={`Adicionar mais fotos ${tipo === 'antes' ? 'antes' : 'depois'}`}
+                                      className="h-20 w-20 rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                       style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}
                                     >
-                                      <Plus className="h-4 w-4 text-muted-foreground/50" />
+                                      <Plus className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
                                     </button>
                                   )}
                                 </>
                               )}
                             </div>
                             {isIncomplete && (
-                              <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2">
-                                <div className="text-amber-600 mt-0.5">⚠</div>
-                                <p className="text-xs text-amber-700">Adicione também foto {otherTipo === 'antes' ? 'de antes' : 'de depois'}</p>
+                              <div
+                                className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2"
+                                role="alert"
+                                aria-live="polite"
+                              >
+                                <Upload className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" aria-hidden="true" />
+                                <p className="text-xs text-amber-700">
+                                  Adicione também foto {otherTipo === 'antes' ? 'de antes' : 'de depois'} para completar este serviço.
+                                </p>
                               </div>
                             )}
                           </div>
@@ -489,21 +573,35 @@ function OcorrenciaDetailPage() {
                       >
                         <p className="text-xs text-muted-foreground/50">Nenhuma foto</p>
                       </div>
-                    ) : fotos.map(f => (
-                      <div key={f.id} className="relative group">
-                        <img
-                          src={f.url}
-                          alt={label}
-                          className="h-20 w-20 rounded-xl object-cover border border-border/60"
-                        />
-                        <button
-                          onClick={() => deleteFotoFinal(f.id)}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
+                    ) : (
+                    <>
+                      {fotos.map(f => (
+                        <div key={f.id} className="relative group">
+                          <img
+                            src={getFotoUrl(f.id, f.url) || ''}
+                            alt={label}
+                            onError={() => handleImgError(f.id, 'fotos-finais', f.storage_path)}
+                            className="h-20 w-20 rounded-xl object-cover border border-border/60"
+                          />
+                          <button
+                            onClick={() => deleteFotoFinal(f.id)}
+                            aria-label={`Remover foto de ${label}`}
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <X className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        </div>
+                      ))}
+                      {pendingPreview?.key === `final-${key}` && (
+                        <div className="relative h-20 w-20">
+                          <img src={pendingPreview.url} alt="Enviando..." className="h-20 w-20 rounded-xl object-cover border border-border/60 opacity-50" />
+                          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/20">
+                            <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   </div>
                 </div>
               ))}
@@ -524,8 +622,9 @@ function OcorrenciaDetailPage() {
                   <p className="text-sm font-semibold text-foreground mb-3">Retirada de Fios</p>
                   <div className="flex flex-wrap gap-2">
                     {retiradaFios.map(f => (
-                      <img key={f.id} src={f.url || ''} alt="Retirada fios"
-                        onClick={() => f.url && handleZoomFoto(f.url)}
+                      <img key={f.id} src={getFotoUrl(f.id, f.url) || ''} alt="Retirada fios"
+                        onClick={() => { const u = getFotoUrl(f.id, f.url); if (u) handleZoomFoto(u); }}
+                        onError={() => handleImgError(f.id, 'fotos-finais', f.storage_path)}
                         className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow" />
                     ))}
                   </div>
@@ -536,8 +635,9 @@ function OcorrenciaDetailPage() {
                   <p className="text-sm font-semibold text-foreground mb-3">CTOPs</p>
                   <div className="flex flex-wrap gap-2">
                     {ctops.map(f => (
-                      <img key={f.id} src={f.url || ''} alt="CTOP"
-                        onClick={() => f.url && handleZoomFoto(f.url)}
+                      <img key={f.id} src={getFotoUrl(f.id, f.url) || ''} alt="CTOP"
+                        onClick={() => { const u = getFotoUrl(f.id, f.url); if (u) handleZoomFoto(u); }}
+                        onError={() => handleImgError(f.id, 'fotos-finais', f.storage_path)}
                         className="h-20 w-20 rounded-xl object-cover border border-border/60 cursor-pointer hover:shadow-lg transition-shadow" />
                     ))}
                   </div>
@@ -636,12 +736,18 @@ function OcorrenciaDetailPage() {
 
         {/* Modal Zoom Foto */}
         <Dialog open={!!fotoZoom} onOpenChange={(open) => !open && setFotoZoom(null)}>
-          <DialogContent className="max-w-2xl w-full p-2 sm:p-4">
-            <DialogClose className="absolute top-2 right-2 opacity-70 hover:opacity-100" />
+          <DialogContent
+            className="max-w-2xl w-full p-2 sm:p-4"
+            aria-label="Visualização da foto em tamanho ampliado"
+          >
+            <DialogClose
+              className="absolute top-2 right-2 opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              aria-label="Fechar visualização"
+            />
             {fotoZoom && (
               <img
                 src={fotoZoom}
-                alt="Foto em zoom"
+                alt="Foto ampliada"
                 className="w-full h-auto rounded-lg max-h-[80vh] object-contain"
               />
             )}

@@ -235,6 +235,32 @@
   .glow-primary {
     box-shadow: 0 0 20px oklch(0.50 0.225 255 / 0.35);
   }
+
+  /* Focus-visible global para elementos interativos customizados */
+  [role="button"]:focus-visible,
+  button:focus-visible {
+    outline: 2px solid oklch(0.50 0.225 255);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .delay-75,
+  .delay-150,
+  .delay-225,
+  .delay-300 {
+    animation-delay: 0ms;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 @media print {

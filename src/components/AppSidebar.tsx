@@ -88,10 +88,11 @@ export function AppSidebar() {
             <img src="/logo-ttc.png" alt="Logo TTC" className="h-8 w-auto rounded-lg" style={{ imageRendering: 'auto', maxWidth: '80%' }} />
             <button
               onClick={toggleSidebar}
-              title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-              className="absolute right-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              aria-expanded={!collapsed}
+              className="absolute right-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
-              {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              {collapsed ? <PanelLeft className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
             </button>
           </div>
           {!collapsed && (
@@ -109,7 +110,7 @@ export function AppSidebar() {
               Navegação
             </p>
           )}
-          <nav className="space-y-0.5">
+          <nav className="space-y-0.5" aria-label="Navegação principal">
             {items.map((item) => {
               const active = currentPath === item.url || currentPath.startsWith(item.url + '/');
               return (
@@ -117,6 +118,7 @@ export function AppSidebar() {
                   key={item.title}
                   to={item.url}
                   title={collapsed ? item.title : undefined}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 relative group',
                     active
@@ -168,13 +170,13 @@ export function AppSidebar() {
 
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Sair' : undefined}
+            aria-label="Sair do sistema"
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150',
+              'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
               collapsed && 'justify-center px-2'
             )}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
             {!collapsed && <span>Sair</span>}
           </button>
         </div>

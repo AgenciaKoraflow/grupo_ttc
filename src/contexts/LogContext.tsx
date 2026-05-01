@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { Log, LogTipo, LogCategoria } from '@/types';
 import { supabase } from '@/lib/supabase';
 
@@ -14,6 +14,8 @@ interface LogStore {
     entidadeNome: string;
     detalhes: string;
   }) => void;
+  loadLogs: () => Promise<void>;
+  logsLoaded: boolean;
 }
 
 const LogContext = createContext<LogStore | null>(null);
@@ -35,18 +37,23 @@ function rowToLog(row: any): Log {
 
 export function LogProvider({ children }: { children: ReactNode }) {
   const [logs, setLogs] = useState<Log[]>([]);
+  const [logsLoaded, setLogsLoaded] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from('logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500);
-      if (error) { console.error('[Log] load:', error); return; }
-      setLogs((data ?? []).map(rowToLog));
-    })();
-  }, []);
+  const loadLogs = useCallback(async () => {
+    if (logsLoaded) return;
+    const { data, error } = await supabase
+      .from('logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) { console.error('[Log] load:', error); return; }
+    setLogs(prev => {
+      const existingIds = new Set(prev.map(l => l.id));
+      const fresh = (data ?? []).map(rowToLog).filter(l => !existingIds.has(l.id));
+      return fresh.length ? [...fresh, ...prev] : prev;
+    });
+    setLogsLoaded(true);
+  }, [logsLoaded]);
 
   const addLog = useCallback((data: {
     userId: string | null;
@@ -88,7 +95,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const value = useMemo(() => ({ logs, addLog }), [logs, addLog]);
+  const value = useMemo(() => ({ logs, addLog, loadLogs, logsLoaded }), [logs, addLog, loadLogs, logsLoaded]);
 
   return (
     <LogContext.Provider value={value}>

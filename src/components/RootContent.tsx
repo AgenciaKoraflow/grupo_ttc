@@ -3,6 +3,7 @@ import { Outlet } from '@tanstack/react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLog } from '@/contexts/LogContext';
 import { ChangePasswordModal } from '@/components/ChangePasswordModal';
+import { Toaster } from '@/components/ui/sonner';
 
 export function RootContent() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export function RootContent() {
 
   return (
     <>
+      <Toaster richColors position="top-right" />
       <ChangePasswordModal />
       <Outlet />
     </>

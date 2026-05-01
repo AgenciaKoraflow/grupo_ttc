@@ -61,8 +61,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
             <div className="flex items-center gap-2">
               {/* Sino de notificações decorativo */}
-              <button className="relative h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150">
-                <Bell className="h-4 w-4" />
+              <button
+                className="relative h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Notificações"
+              >
+                <Bell className="h-4 w-4" aria-hidden="true" />
               </button>
 
               <div className="h-4 w-px bg-border" />
@@ -71,6 +74,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-2.5 pl-1">
                 <div
                   className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                  aria-hidden="true"
                   style={{
                     background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
                     boxShadow: '0 2px 8px oklch(0.50 0.225 255 / 0.35)',
@@ -80,13 +84,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 </div>
                 <div className="hidden sm:block leading-none">
                   <p className="text-sm font-semibold text-foreground leading-tight">{user!.nome.split(' ')[0]}</p>
-                  <p className="text-[10px] text-muted-foreground capitalize">{user!.role}</p>
+                  <p className="text-[10px] text-muted-foreground capitalize" aria-label={`Perfil: ${user!.role}`}>{user!.role}</p>
                 </div>
               </div>
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">
+          <main id="main-content" className="flex-1 overflow-auto" role="main">
             {children}
           </main>
         </div>

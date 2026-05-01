@@ -286,12 +286,12 @@ function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+      <div className="p-4 md:p-6 space-y-5 md:space-y-6 max-w-[1400px] mx-auto">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 animate-fade-in">
+        <div className="flex flex-wrap items-start justify-between gap-3 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
               {isAdmin ? 'Dashboard Operacional' : 'Minhas Ocorrências'}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -300,13 +300,19 @@ function DashboardPage() {
           </div>
 
           {/* Period selector */}
-          <div className="flex items-center gap-1 p-1 rounded-xl border border-border/60 bg-card shrink-0">
+          <div
+            className="flex items-center gap-1 p-1 rounded-xl border border-border/60 bg-card"
+            role="group"
+            aria-label="Filtro por período"
+          >
             {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
+                aria-pressed={period === p}
+                aria-label={`Período: ${PERIOD_LABELS[p]}`}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150',
+                  'px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   period === p
                     ? 'text-white'
                     : 'text-muted-foreground hover:text-foreground'
@@ -323,7 +329,7 @@ function DashboardPage() {
         </div>
 
         {/* ── KPI Row ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" role="region" aria-label="Indicadores principais">
           <KpiCard label="Total" value={total} icon={FileText}
             color={C.primary} bg="oklch(0.50 0.225 255 / 0.12)"
             trendLabel={`${period === 'all' ? 'Geral' : PERIOD_LABELS[period]}`} trend="neutral" />
@@ -570,10 +576,10 @@ function DashboardPage() {
         {/* ── Listas pendentes / em andamento ─────────────────────────────── */}
         <div className="grid md:grid-cols-2 gap-5">
           <SectionCard title="Pendentes">
-            <div className="p-2">
+            <div className="p-2" role="list" aria-label="Ocorrências pendentes">
               {pendList.length === 0 ? (
-                <div className="py-8 text-center">
-                  <CheckCircle className="h-7 w-7 text-muted-foreground/25 mx-auto mb-2" />
+                <div className="py-8 text-center" role="status">
+                  <CheckCircle className="h-7 w-7 text-muted-foreground/25 mx-auto mb-2" aria-hidden="true" />
                   <p className="text-sm text-muted-foreground">Sem pendências</p>
                 </div>
               ) : (
@@ -596,10 +602,10 @@ function DashboardPage() {
           </SectionCard>
 
           <SectionCard title="Em Andamento">
-            <div className="p-2">
+            <div className="p-2" role="list" aria-label="Ocorrências em andamento">
               {andList.length === 0 ? (
-                <div className="py-8 text-center">
-                  <PlayCircle className="h-7 w-7 text-muted-foreground/25 mx-auto mb-2" />
+                <div className="py-8 text-center" role="status">
+                  <PlayCircle className="h-7 w-7 text-muted-foreground/25 mx-auto mb-2" aria-hidden="true" />
                   <p className="text-sm text-muted-foreground">Nenhuma em andamento</p>
                 </div>
               ) : (

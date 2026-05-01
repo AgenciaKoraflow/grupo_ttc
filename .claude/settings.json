@@ -1,7 +1,10 @@
 {
-  "model": "opusplan",
   "permissions": {
-    "allow": [],
+    "allow": [
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs ls *)"
+    ],
     "deny": []
-  }
+  },
+  "model": "opusplan"
 }

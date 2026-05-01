@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -543,30 +543,50 @@ function OcorrenciasPage() {
   const [operadorSelecionado, setOperadorSelecionado] = useState<string>("");
   const [editingEquipeId, setEditingEquipeId] = useState<string | null>(null);
 
-  const ocorrenciaAtual = ocorrencias.find(o => o.id === ocorrenciaSelecionada);
+  const ocorrenciaAtual = useMemo(
+    () => ocorrencias.find(o => o.id === ocorrenciaSelecionada),
+    [ocorrencias, ocorrenciaSelecionada],
+  );
   const operadorAtual = ocorrenciaAtual?.assignedUser;
 
-  let filtered = isAdminOrSupervisor
-    ? ocorrencias
-    : ocorrencias.filter(o => o.equipe_id === user?.equipe_id);
+  const municipios = useMemo(
+    () => [...new Set(ocorrencias.map(o => o.municipio))].sort(),
+    [ocorrencias],
+  );
 
-  if (statusFilter) filtered = filtered.filter(o => o.status === statusFilter);
-  if (statusViewFilter === "backlog") filtered = filtered.filter(o => o.status === "PENDENTE" || o.status === "EM_ANDAMENTO");
-  if (statusViewFilter === "finalizadas") filtered = filtered.filter(o => o.status === "FINALIZADA");
-  if (equipeFilter) filtered = filtered.filter(o => o.equipe_id === equipeFilter);
-  if (municipioFilter) filtered = filtered.filter(o => o.municipio === municipioFilter);
-  if (operadorFilter) filtered = filtered.filter(o => o.assigned_to === operadorFilter);
-  if (search) {
-    const s = search.toLowerCase();
-    filtered = filtered.filter(o =>
-      o.id_ocorrencia.toLowerCase().includes(s) ||
-      o.municipio.toLowerCase().includes(s) ||
-      (o.contratada || '').toLowerCase().includes(s)
-    );
-  }
-
-  const municipios = [...new Set(ocorrencias.map(o => o.municipio))].sort();
   const hasFilters = !!(statusFilter || equipeFilter || municipioFilter || search || operadorFilter);
+
+  const filtered = useMemo(() => {
+    let result = isAdminOrSupervisor
+      ? ocorrencias
+      : ocorrencias.filter(o => o.equipe_id === user?.equipe_id);
+    if (statusFilter) result = result.filter(o => o.status === statusFilter);
+    if (statusViewFilter === "backlog") result = result.filter(o => o.status === "PENDENTE" || o.status === "EM_ANDAMENTO");
+    if (statusViewFilter === "finalizadas") result = result.filter(o => o.status === "FINALIZADA");
+    if (equipeFilter) result = result.filter(o => o.equipe_id === equipeFilter);
+    if (municipioFilter) result = result.filter(o => o.municipio === municipioFilter);
+    if (operadorFilter) result = result.filter(o => o.assigned_to === operadorFilter);
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(o =>
+        o.id_ocorrencia.toLowerCase().includes(s) ||
+        o.municipio.toLowerCase().includes(s) ||
+        (o.contratada || '').toLowerCase().includes(s)
+      );
+    }
+    return result;
+  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, search]);
+
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+
+  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter]);
+
+  const paginatedFiltered = useMemo(
+    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filtered, page],
+  );
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
   return (
     <AppLayout>
@@ -695,172 +715,216 @@ function OcorrenciasPage() {
           className="rounded-2xl border border-border/60 bg-card overflow-hidden animate-fade-in-up delay-75"
           style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.06), 0 4px 12px oklch(0.115 0.028 252 / 0.04)' }}
         >
-          {/* Table header — desktop only */}
-          <div
-            className="hidden md:grid gap-4 px-5 py-3 border-b border-border/60"
-            style={{
-              gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.8fr 1fr 1fr 1.2fr 0.8fr 1fr',
-              background: 'oklch(0.972 0.004 245 / 0.7)',
-            }}
-          >
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">ID Ocorrência</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Município</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cabo/Primária</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden md:block">AT</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:block">Nome AT</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:block">Contratada</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Equipe</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:block">Gerente Icomon</span>
-          </div>
-
-          {/* Rows — desktop only */}
-          <div className="divide-y divide-border/40 hidden md:block">
-            {filtered.length === 0 ? (
-              <div className="py-16 text-center">
-                <div
-                  className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
-                  style={{ background: 'oklch(0.50 0.225 255 / 0.08)' }}
-                >
-                  <FileText className="h-6 w-6" style={{ color: 'oklch(0.50 0.225 255 / 0.5)' }} />
-                </div>
-                <p className="text-sm font-medium text-muted-foreground">Nenhuma ocorrência encontrada</p>
-                {canCreate && !hasFilters && (
-                  <button
-                    className="mt-3 text-xs text-primary hover:underline"
-                    onClick={() => setShowImport(true)}
-                  >
-                    Importar planilha para começar
-                  </button>
-                )}
-                {hasFilters && (
-                  <p className="text-xs text-muted-foreground/60 mt-1">Tente ajustar os filtros</p>
-                )}
+          {filtered.length === 0 ? (
+            <div className="py-16 text-center px-4" role="status" aria-live="polite">
+              <div
+                className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                style={{ background: 'oklch(0.50 0.225 255 / 0.08)' }}
+              >
+                <FileText className="h-6 w-6" aria-hidden="true" style={{ color: 'oklch(0.50 0.225 255 / 0.5)' }} />
               </div>
-            ) : (
-              filtered.map((oc, idx) => (
-                <div key={oc.id}>
-                  {/* Mobile card */}
-                  <div
-                    className="md:hidden flex flex-col gap-3 px-4 py-4 border-b border-border/40 cursor-pointer transition-all duration-150 hover:bg-accent/40"
-                    onClick={() => navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
+              <p className="text-sm font-medium text-muted-foreground">Nenhuma ocorrência encontrada</p>
+              {canCreate && !hasFilters && (
+                <button
+                  className="mt-3 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  onClick={() => setShowImport(true)}
+                >
+                  Importar planilha para começar
+                </button>
+              )}
+              {hasFilters && (
+                <p className="text-xs text-muted-foreground/60 mt-1">Tente ajustar os filtros</p>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Table header — desktop only */}
+              <div
+                className="hidden md:grid gap-4 px-5 py-3 border-b border-border/60"
+                style={{
+                  gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.8fr 1fr 1fr 1.2fr 0.8fr 1fr',
+                  background: 'oklch(0.972 0.004 245 / 0.7)',
+                }}
+                role="row"
+                aria-label="Cabeçalho da tabela"
+              >
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">ID Ocorrência</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Município</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cabo/Primária</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">AT</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:block">Nome AT</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:block">Contratada</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Equipe</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:block">Gerente Icomon</span>
+              </div>
+
+              {/* Rows — mobile cards + desktop grid */}
+              <div className="divide-y divide-border/40" role="list" aria-label="Ocorrências">
+                {paginatedFiltered.map((oc, idx) => (
+                  <div key={oc.id} role="listitem">
+                    {/* Mobile card */}
+                    <div
+                      className="md:hidden flex flex-col gap-3 px-4 py-4 cursor-pointer transition-all duration-150 hover:bg-accent/40 active:bg-accent/60"
+                      onClick={() => navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Ocorrência ${oc.id_ocorrencia}, ${oc.municipio}`}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div
+                            className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'oklch(0.50 0.225 255 / 0.10)' }}
+                          >
+                            <FileText className="h-3.5 w-3.5" aria-hidden="true" style={{ color: 'oklch(0.50 0.225 255)' }} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-foreground truncate">{oc.id_ocorrencia}</div>
+                            <div className="text-xs text-muted-foreground">{oc.municipio}</div>
+                          </div>
+                        </div>
+                        <StatusBadge status={oc.status} />
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Cabo: <span className="text-foreground">{oc.cabo_primaria || '—'}</span>
+                        {oc.at && <span className="ml-3">AT: <span className="text-foreground">{oc.at}</span></span>}
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {editingEquipeId === oc.id ? (
+                          <Select
+                            value={equipeSelecionada}
+                            onValueChange={(value) => {
+                              const eqId = value === "none" ? null : value;
+                              vincularEquipe(oc.id, eqId);
+                              setEditingEquipeId(null);
+                              setEquipeSelecionada("");
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-9 text-sm" aria-label="Selecionar equipe">
+                              <SelectValue placeholder="Selecione uma equipe" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sem equipe</SelectItem>
+                              {equipes.filter(e => e.ativa).map(e => (
+                                <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingEquipeId(oc.id); setEquipeSelecionada(oc.equipe_id || ""); }}
+                            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded hover:bg-muted transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`Alterar equipe: ${oc.equipe?.nome ?? 'Sem equipe'}`}
+                          >
+                            Equipe: <span className="text-foreground font-medium">{oc.equipe?.nome ?? 'Sem equipe'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desktop row */}
+                    <div
+                      className="hidden md:grid gap-4 px-5 py-3.5 items-center cursor-pointer transition-all duration-150 hover:bg-accent/40 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      style={{
+                        gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.8fr 1fr 1fr 1.2fr 0.8fr 1fr',
+                        background: idx % 2 !== 0 ? 'oklch(0.972 0.004 245 / 0.35)' : undefined,
+                      }}
+                      onClick={() => navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Ocorrência ${oc.id_ocorrencia}, ${oc.municipio}`}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
                         <div
                           className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
                           style={{ background: 'oklch(0.50 0.225 255 / 0.10)' }}
                         >
-                          <FileText className="h-3.5 w-3.5" style={{ color: 'oklch(0.50 0.225 255)' }} />
+                          <FileText className="h-3.5 w-3.5" aria-hidden="true" style={{ color: 'oklch(0.50 0.225 255)' }} />
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-foreground truncate">{oc.id_ocorrencia}</div>
-                          <div className="text-xs text-muted-foreground">{oc.municipio}</div>
-                        </div>
+                        <span className="text-sm font-semibold text-foreground truncate">{oc.id_ocorrencia}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-xs text-muted-foreground">
-                        Cabo: <span className="text-foreground">{oc.cabo_primaria || '—'}</span>
+                      <span className="text-sm text-foreground/80 truncate">{oc.municipio}</span>
+                      <span className="text-sm text-muted-foreground truncate">{oc.cabo_primaria || '—'}</span>
+                      <span className="text-sm text-muted-foreground truncate">{oc.at || '—'}</span>
+                      <span className="text-sm text-muted-foreground truncate hidden lg:block">{oc.nome_at || '—'}</span>
+                      <span className="text-sm text-muted-foreground truncate hidden lg:block">{oc.contratada || '—'}</span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {editingEquipeId === oc.id ? (
+                          <Select
+                            value={equipeSelecionada}
+                            onValueChange={(value) => {
+                              const eqId = value === "none" ? null : value;
+                              vincularEquipe(oc.id, eqId);
+                              setEditingEquipeId(null);
+                              setEquipeSelecionada("");
+                            }}
+                          >
+                            <SelectTrigger className="w-full h-8 text-sm" aria-label="Selecionar equipe">
+                              <SelectValue placeholder="Selecione uma equipe" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sem equipe</SelectItem>
+                              {equipes.filter(e => e.ativa).map(e => (
+                                <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingEquipeId(oc.id); setEquipeSelecionada(oc.equipe_id || ""); }}
+                            className="text-sm text-muted-foreground truncate cursor-pointer hover:text-foreground hover:bg-muted px-2 py-1 rounded transition-colors w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`Alterar equipe: ${oc.equipe?.nome ?? 'Sem equipe'}`}
+                          >
+                            {oc.equipe?.nome ?? <span className="text-muted-foreground/40 italic">Sem equipe</span>}
+                          </button>
+                        )}
                       </div>
-                    </div>
-                    <div>
-                      {editingEquipeId === oc.id ? (
-                        <Select
-                          value={equipeSelecionada}
-                          onValueChange={(value) => {
-                            const eqId = value === "none" ? null : value;
-                            vincularEquipe(oc.id, eqId);
-                            setEditingEquipeId(null);
-                            setEquipeSelecionada("");
-                          }}
-                        >
-                          <SelectTrigger className="w-full h-8 text-sm">
-                            <SelectValue placeholder="Selecione uma equipe" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Sem equipe</SelectItem>
-                            {equipes.filter(e => e.ativa).map(e => (
-                              <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span
-                          onClick={(e) => { e.stopPropagation(); setEditingEquipeId(oc.id); setEquipeSelecionada(oc.equipe_id || ""); }}
-                          className="text-xs text-muted-foreground cursor-pointer hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors inline-block"
-                        >
-                          Equipe: <span className="text-foreground font-medium">{oc.equipe?.nome ?? 'Sem equipe'}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Status:</span>
-                      <StatusBadge status={oc.status} />
+                      <div className="flex items-center justify-center"><StatusBadge status={oc.status} /></div>
+                      <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.gerente_icomon || '—'}</span>
                     </div>
                   </div>
-
-                  {/* Desktop row */}
-                  <div
-                    className="hidden md:grid gap-4 px-5 py-3.5 items-center cursor-pointer transition-all duration-150 hover:bg-accent/40 group"
-                    style={{
-                      gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.8fr 1fr 1fr 1.2fr 0.8fr 1fr',
-                      background: idx % 2 !== 0 ? 'oklch(0.972 0.004 245 / 0.35)' : undefined,
-                    }}
-                    onClick={() => navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
-                  >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: 'oklch(0.50 0.225 255 / 0.10)' }}
-                    >
-                      <FileText className="h-3.5 w-3.5" style={{ color: 'oklch(0.50 0.225 255)' }} />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground truncate">{oc.id_ocorrencia}</span>
-                  </div>
-                  <span className="text-sm text-foreground/80 truncate">{oc.municipio}</span>
-                  <span className="text-sm text-muted-foreground truncate">{oc.cabo_primaria || '—'}</span>
-                  <span className="text-sm text-muted-foreground truncate hidden md:block">{oc.at || '—'}</span>
-                  <span className="text-sm text-muted-foreground truncate hidden lg:block">{oc.nome_at || '—'}</span>
-                  <span className="text-sm text-muted-foreground truncate hidden lg:block">{oc.contratada || '—'}</span>
-                  <div>
-                    {editingEquipeId === oc.id ? (
-                      <Select
-                        value={equipeSelecionada}
-                        onValueChange={(value) => {
-                          const eqId = value === "none" ? null : value;
-                          vincularEquipe(oc.id, eqId);
-                          setEditingEquipeId(null);
-                          setEquipeSelecionada("");
-                        }}
-                      >
-                        <SelectTrigger className="w-full h-8 text-sm">
-                          <SelectValue placeholder="Selecione uma equipe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem equipe</SelectItem>
-                          {equipes.filter(e => e.ativa).map(e => (
-                            <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span
-                        onClick={(e) => { e.stopPropagation(); setEditingEquipeId(oc.id); setEquipeSelecionada(oc.equipe_id || ""); }}
-                        className="text-sm text-muted-foreground truncate cursor-pointer hover:text-foreground hover:bg-muted px-2 py-1 rounded transition-colors"
-                      >
-                        {oc.equipe?.nome ?? <span className="text-muted-foreground/40 italic">Sem equipe</span>}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-center"><StatusBadge status={oc.status} /></div>
-                  <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.gerente_icomon || '—'}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between animate-fade-in-up" role="navigation" aria-label="Paginação">
+            <p className="text-xs text-muted-foreground">
+              Mostrando {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs px-3"
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+                aria-label="Página anterior"
+              >
+                ← Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground px-2" aria-current="page">
+                {page + 1} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs px-3"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+                aria-label="Próxima página"
+              >
+                Próxima →
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Dialog de importação */}
