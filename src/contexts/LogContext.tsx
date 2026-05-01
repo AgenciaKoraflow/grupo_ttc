@@ -20,7 +20,20 @@ interface LogStore {
 
 const LogContext = createContext<LogStore | null>(null);
 
-function rowToLog(row: any): Log {
+type LogRow = {
+  id: string;
+  user_id: string | null;
+  user_nome: string;
+  user_role: 'admin' | 'supervisor' | 'operador' | 'sistema';
+  tipo: LogTipo;
+  categoria: LogCategoria;
+  entidade_id: string;
+  entidade_nome: string;
+  detalhes: string;
+  created_at: string;
+};
+
+function rowToLog(row: LogRow): Log {
   return {
     id: row.id,
     userId: row.user_id,
@@ -49,7 +62,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
     if (error) { console.error('[Log] load:', error); return; }
     setLogs(prev => {
       const existingIds = new Set(prev.map(l => l.id));
-      const fresh = (data ?? []).map(rowToLog).filter(l => !existingIds.has(l.id));
+      const fresh = (data ?? []).map(row => rowToLog(row as LogRow)).filter(l => !existingIds.has(l.id));
       return fresh.length ? [...fresh, ...prev] : prev;
     });
     setLogsLoaded(true);

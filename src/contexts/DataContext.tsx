@@ -401,7 +401,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tipo_servico_id: data.tipo_servico_id ?? '',
       tipo_servico: ts,
       observacao: data.observacao ?? null,
-      status_item: data.status_item ?? 'Regularizado',
+      status_item: data.status_item ?? 'PENDENTE',
       ordem: data.ordem ?? 1,
       created_by: data.created_by ?? null,
       created_at: now,

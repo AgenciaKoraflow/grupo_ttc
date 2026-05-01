@@ -7,13 +7,13 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { AuthSession } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types";
 
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas
 
-function isSessionExpired(session: Session): boolean {
+function isSessionExpired(session: AuthSession): boolean {
   const lastSignIn = session.user.last_sign_in_at;
   if (!lastSignIn) return false;
   return Date.now() - new Date(lastSignIn).getTime() > SESSION_MAX_AGE_MS;
