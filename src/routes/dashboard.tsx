@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Ocorrencia } from "@/types";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
@@ -245,6 +246,7 @@ function OcorrenciaRow({ id, id_ocorrencia, municipio, status }: {
 }
 
 function DashboardPage() {
+  usePageTitle("Dashboard");
   const { user, isAdmin } = useAuth();
   const { ocorrencias, equipes, profiles } = useData();
   const [period, setPeriod] = useState<Period>('all');

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/usuarios")({
   component: UsuariosPage,
@@ -50,6 +51,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function UsuariosPage() {
+  usePageTitle("Usuários");
   const { canManageUsers } = useAuth();
   const { profiles, equipes, addProfile, updateProfile, deleteProfile } = useData();
   const [openCreate, setOpenCreate] = useState(false);

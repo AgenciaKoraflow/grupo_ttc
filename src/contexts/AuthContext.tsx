@@ -7,8 +7,17 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types";
+
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+function isSessionExpired(session: Session): boolean {
+  const lastSignIn = session.user.last_sign_in_at;
+  if (!lastSignIn) return false;
+  return Date.now() - new Date(lastSignIn).getTime() > SESSION_MAX_AGE_MS;
+}
 
 interface LoginResult {
   success: boolean;
@@ -72,14 +81,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // INITIAL_SESSION: fired immediately on subscribe — handles session restore after refresh
       if (event === "INITIAL_SESSION") {
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          setUser(profile);
+          if (isSessionExpired(session)) {
+            await supabase.auth.signOut();
+          } else {
+            const profile = await fetchProfile(session.user.id);
+            setUser(profile);
+          }
         }
         setIsLoading(false);
       }
 
-      // TOKEN_REFRESHED: Supabase rotated the access token — re-sync profile in case role changed
+      // TOKEN_REFRESHED: Supabase rotated the access token — check 24h limit and re-sync profile
       if (event === "TOKEN_REFRESHED" && session?.user) {
+        if (isSessionExpired(session)) {
+          await supabase.auth.signOut();
+          return;
+        }
         const profile = await fetchProfile(session.user.id);
         setUser(profile);
       }

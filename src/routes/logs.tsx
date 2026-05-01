@@ -26,6 +26,7 @@ const C = {
 };
 
 import type { LogTipo, LogCategoria, Log } from "@/types";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const TIPOS_LOG: Record<LogTipo, { label: string; color: string; icon: React.ElementType }> = {
   LOGIN: { label: 'Login', color: 'bg-green-100 text-green-700', icon: Plus },
@@ -64,6 +65,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function LogsPage() {
+  usePageTitle("Logs");
   const { logs, loadLogs } = useLog();
   const [search, setSearch] = useState('');
 

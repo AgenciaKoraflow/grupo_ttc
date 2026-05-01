@@ -1,0 +1,3 @@
+# Sistema interno — bloqueia todos os crawlers
+User-agent: *
+Disallow: /

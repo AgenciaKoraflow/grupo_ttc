@@ -2,9 +2,26 @@
   "permissions": {
     "allow": [
       "Bash(awk '{print $NF}')",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Read(//home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/**)",
+      "Bash(sed -n '1,5p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/ocorrencias.index.tsx)",
+      "Bash(sed -n '525,530p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/ocorrencias.index.tsx)",
+      "Bash(sed -n '1,5p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/equipes.tsx)",
+      "Bash(sed -n '1,5p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/usuarios.tsx)",
+      "Bash(sed -n '1,5p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/tipos-servico.tsx)",
+      "Bash(sed -n '1,5p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/logs.tsx)",
+      "Bash(sed -n '47,53p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/equipes.tsx)",
+      "Bash(sed -n '50,56p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/usuarios.tsx)",
+      "Bash(sed -n '41,47p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/tipos-servico.tsx)",
+      "Bash(sed -n '64,70p' /home/joaosousa/projects/KORAFLOW/grupo_ttc/src/routes/logs.tsx)",
+      "Bash(~/.bun/bin/bun run *)",
+      "Read(//home/joaosousa/.nvm/versions/node/**)",
+      "Read(//usr/local/bin/**)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "/home/joaosousa/projects/KORAFLOW/grupo_ttc"
+    ]
   },
   "model": "opusplan"
 }

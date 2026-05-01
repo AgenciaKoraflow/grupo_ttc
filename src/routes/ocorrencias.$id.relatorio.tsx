@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, Calendar, MapPin, Users, Tag, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/ocorrencias/$id/relatorio")({
   component: RelatorioPage,
@@ -22,6 +23,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function RelatorioPage() {
   const { id } = Route.useParams();
+  usePageTitle(`Relatório #${id}`);
   const { ocorrencias, servicos, fotosServico, fotosFinais } = useData();
 
   const oc = ocorrencias.find(o => o.id === id);

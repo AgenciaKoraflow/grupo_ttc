@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Plus, Trash2, CheckCircle, RefreshCw, FileText, Upload, Camera, X, MapPin, Cable, Tag, Building, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/ocorrencias/$id/")({
   component: OcorrenciaDetailPage,
@@ -78,6 +79,7 @@ function InfoItem({ label, value, icon: Icon }: { label: string; value: React.Re
 
 function OcorrenciaDetailPage() {
   const { id } = Route.useParams();
+  usePageTitle(`Ocorrência #${id}`);
   const { user, isAdmin, isSupervisor, canDelete, canEdit, canReopen } = useAuth();
   const isAdminOrSupervisor = isAdmin || isSupervisor;
   const {

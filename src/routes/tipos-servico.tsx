@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Wrench, Activity, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/tipos-servico")({
   component: TiposServicoPage,
@@ -41,6 +42,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function TiposServicoPage() {
+  usePageTitle("Tipos de Serviço");
   const { isAdmin, isSupervisor } = useAuth();
   const isAdminOrSupervisor = isAdmin || isSupervisor;
   const { tiposServico, servicos, ocorrencias, addTipoServico, updateTipoServico } = useData();

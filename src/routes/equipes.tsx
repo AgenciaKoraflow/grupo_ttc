@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Pencil, Users, Trash2, Building2, Activity, Clock, CheckCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/equipes")({
   component: EquipesPage,
@@ -47,6 +48,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 function EquipesPage() {
+  usePageTitle("Equipes");
   const { isAdmin, isSupervisor, canDelete, canCreate } = useAuth();
   const isAdminOrSupervisor = isAdmin || isSupervisor;
   const { equipes, ocorrencias, profiles, addEquipe, updateEquipe, updateProfile, deleteEquipe } = useData();

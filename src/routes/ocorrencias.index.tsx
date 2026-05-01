@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export const Route = createFileRoute("/ocorrencias/")({
   component: OcorrenciasPage,
@@ -525,6 +526,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 function OcorrenciasPage() {
+  usePageTitle("Ocorrências");
   const { user, isAdmin, isSupervisor, canDelete, canCreate } = useAuth();
   const isAdminOrSupervisor = isAdmin || isSupervisor;
   const { ocorrencias, equipes, profiles, vincularEquipe, designarOperador, deleteOcorrencia } = useData();
