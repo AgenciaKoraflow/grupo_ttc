@@ -289,10 +289,15 @@ function OcorrenciaDetailPage() {
 
   const canFinalizar = finalizarValidation.every(v => v.isComplete) && finalizarValidation.length > 0;
 
-  const handleFinalizar = () => {
+  const handleFinalizar = async () => {
     if (!user) return;
-    finalizarOcorrencia(oc.id, user.id);
-    setShowFinalizar(false);
+    try {
+      await finalizarOcorrencia(oc.id, user.id);
+      setShowFinalizar(false);
+      toast.success('Ocorrência finalizada com sucesso');
+    } catch {
+      toast.error('Erro ao finalizar ocorrência', { description: 'Verifique sua conexão e tente novamente.' });
+    }
   };
 
   return (
@@ -327,7 +332,14 @@ function OcorrenciaDetailPage() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5 h-9 font-medium"
-                onClick={() => reabrirOcorrencia(oc.id, user?.id || 'sistema')}
+                onClick={async () => {
+                  try {
+                    await reabrirOcorrencia(oc.id, user?.id || 'sistema');
+                    toast.success('Ocorrência reaberta com sucesso');
+                  } catch {
+                    toast.error('Erro ao reabrir ocorrência', { description: 'Verifique sua conexão e tente novamente.' });
+                  }
+                }}
                 aria-label="Reabrir ocorrência"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Reabrir</span>
@@ -968,10 +980,15 @@ function OcorrenciaDetailPage() {
               <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  deleteOcorrencia(oc.id);
-                  setShowExcluir(false);
-                  navigate({ to: '/ocorrencias' });
+                onClick={async () => {
+                  try {
+                    await deleteOcorrencia(oc.id);
+                    setShowExcluir(false);
+                    navigate({ to: '/ocorrencias' });
+                    toast.success('Ocorrência excluída com sucesso');
+                  } catch {
+                    toast.error('Erro ao excluir ocorrência', { description: 'Verifique sua conexão e tente novamente.' });
+                  }
                 }}
               >
                 Excluir

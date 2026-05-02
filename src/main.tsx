@@ -2,7 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider } from '@tanstack/react-router'
 import { getRouter } from './router'
+import { initSentry } from './lib/sentry'
 import './styles.css'
+
+initSentry()
 
 try {
   const router = getRouter()

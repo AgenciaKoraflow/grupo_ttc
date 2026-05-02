@@ -7,6 +7,7 @@ import type {
 import { getSignedUrl } from '@/lib/storage';
 import { useAuth } from './AuthContext';
 import { useLog } from './LogContext';
+import { Sentry } from '@/lib/sentry';
 import * as OcorrenciasService from '@/services/ocorrencias.service';
 import * as EquipesService from '@/services/equipes.service';
 import * as TiposServicoService from '@/services/tiposServico.service';
@@ -50,14 +51,14 @@ interface DataStore {
   deleteFotoServico: (id: string) => void;
   addFotoFinal: (file: File, meta: { ocorrencia_id: string; categoria: 'retirada_fios' | 'ctop'; ordem: number }) => Promise<FotoOcorrenciaFinal>;
   deleteFotoFinal: (id: string) => void;
-  finalizarOcorrencia: (id: string, userId: string) => void;
-  reabrirOcorrencia: (id: string, userId: string) => void;
+  finalizarOcorrencia: (id: string, userId: string) => Promise<void>;
+  reabrirOcorrencia: (id: string, userId: string) => Promise<void>;
   addProfile: (data: { nome: string; email: string; role: UserRole; equipe_id: string | null }) => Promise<{ profile: Profile; tempPassword: string }>;
   updateProfile: (id: string, data: Partial<Profile>) => void;
   deleteProfile: (id: string) => void;
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
   designarOperador: (ocorrenciaId: string, operadorId: string | null) => void;
-  deleteOcorrencia: (id: string) => void;
+  deleteOcorrencia: (id: string) => Promise<void>;
   materials: Material[];
   ocorrenciaMateriais: OcorrenciaMaterial[];
   addMaterial: (data: { name: string; unit: string }) => Material;
@@ -367,39 +368,74 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void OcorrenciasService.updateOcorrencia(ocorrenciaId, { assigned_to: operadorId, updated_at: now });
   }, []);
 
-  const finalizarOcorrencia = useCallback((id: string, userId: string) => {
+  const finalizarOcorrencia = useCallback(async (id: string, userId: string): Promise<void> => {
     const oc = ocorrencias.find(o => o.id === id);
     const now = new Date().toISOString();
-    setOcorrencias(prev => prev.map(o =>
+    // Capture previous state for rollback
+    const prev = oc ? { status: oc.status, finalized_at: oc.finalized_at, finalized_by: oc.finalized_by, updated_at: oc.updated_at } : null;
+
+    setOcorrencias(current => current.map(o =>
       o.id === id
         ? { ...o, status: 'FINALIZADA' as OcorrenciaStatus, finalized_at: now, finalized_by: userId, updated_at: now }
         : o
     ));
-    if (oc) logAction('FINALIZACAO', 'OCORRENCIA', id, oc.id_ocorrencia, 'Ocorrência finalizada');
-    void OcorrenciasService.updateOcorrencia(id, {
-      status: 'FINALIZADA', finalized_at: now, finalized_by: userId, updated_at: now,
-    });
+
+    try {
+      await OcorrenciasService.updateOcorrencia(id, {
+        status: 'FINALIZADA', finalized_at: now, finalized_by: userId, updated_at: now,
+      });
+      if (oc) logAction('FINALIZACAO', 'OCORRENCIA', id, oc.id_ocorrencia, 'Ocorrência finalizada');
+    } catch (error) {
+      Sentry.captureException(error);
+      if (prev) {
+        setOcorrencias(current => current.map(o =>
+          o.id === id ? { ...o, ...prev } : o
+        ));
+      }
+      throw error;
+    }
   }, [ocorrencias, logAction]);
 
-  const reabrirOcorrencia = useCallback((id: string, userId: string) => {
+  const reabrirOcorrencia = useCallback(async (id: string, userId: string): Promise<void> => {
     const oc = ocorrencias.find(o => o.id === id);
     const now = new Date().toISOString();
-    setOcorrencias(prev => prev.map(o =>
+    const prev = oc ? { status: oc.status, finalized_at: oc.finalized_at, finalized_by: oc.finalized_by, reopened_at: oc.reopened_at, reopened_by: oc.reopened_by, updated_at: oc.updated_at } : null;
+
+    setOcorrencias(current => current.map(o =>
       o.id === id
         ? { ...o, status: 'EM_ANDAMENTO' as OcorrenciaStatus, finalized_at: null, finalized_by: null, reopened_at: now, reopened_by: userId, updated_at: now }
         : o
     ));
-    if (oc) logAction('REABERTURA', 'OCORRENCIA', id, oc.id_ocorrencia, 'Ocorrência reaberta');
-    void OcorrenciasService.updateOcorrencia(id, {
-      status: 'EM_ANDAMENTO', finalized_at: null, finalized_by: null,
-      reopened_at: now, reopened_by: userId, updated_at: now,
-    });
+
+    try {
+      await OcorrenciasService.updateOcorrencia(id, {
+        status: 'EM_ANDAMENTO', finalized_at: null, finalized_by: null,
+        reopened_at: now, reopened_by: userId, updated_at: now,
+      });
+      if (oc) logAction('REABERTURA', 'OCORRENCIA', id, oc.id_ocorrencia, 'Ocorrência reaberta');
+    } catch (error) {
+      Sentry.captureException(error);
+      if (prev) {
+        setOcorrencias(current => current.map(o =>
+          o.id === id ? { ...o, ...prev } : o
+        ));
+      }
+      throw error;
+    }
   }, [ocorrencias, logAction]);
 
-  const deleteOcorrencia = useCallback((id: string) => {
+  const deleteOcorrencia = useCallback(async (id: string): Promise<void> => {
+    const oc = ocorrencias.find(o => o.id === id);
     setOcorrencias(prev => prev.filter(o => o.id !== id));
-    void OcorrenciasService.deleteOcorrencia(id);
-  }, []);
+
+    try {
+      await OcorrenciasService.deleteOcorrencia(id);
+    } catch (error) {
+      Sentry.captureException(error);
+      if (oc) setOcorrencias(prev => [oc, ...prev]);
+      throw error;
+    }
+  }, [ocorrencias]);
 
   // ─── Equipes ───────────────────────────────────────────────────────────────
 

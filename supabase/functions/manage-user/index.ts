@@ -1,22 +1,48 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// Allowed origins: set ALLOWED_ORIGINS in Supabase project secrets as a
+// comma-separated list of production/staging URLs, e.g.:
+//   supabase secrets set ALLOWED_ORIGINS=https://app.koraflow.com.br,https://staging.koraflow.com.br
+const configuredOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
+const ALLOWED_ORIGINS = new Set([
+  ...configuredOrigins,
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:4173",
+]);
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowed = origin !== null && ALLOWED_ORIGINS.has(origin);
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    Vary: "Origin",
+  };
+  if (allowed) headers["Access-Control-Allow-Origin"] = origin!;
+  return headers;
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  const origin = req.headers.get("Origin");
+
+  // json helper captures origin so every response carries the correct CORS header
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: {
+        ...getCorsHeaders(origin),
+        "Content-Type": "application/json",
+      },
+    });
+
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: getCorsHeaders(origin) });
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -144,14 +170,15 @@ serve(async (req) => {
     // ── RESET-PASSWORD ───────────────────────────────────────────────────────────
     if (action === "reset-password") {
       const { user_id } = body;
-      if (!user_id) return json({ error: "Missing required field: user_id" }, 400);
+      if (!user_id)
+        return json({ error: "Missing required field: user_id" }, 400);
 
       const tempPassword = `Ttc${crypto.randomUUID().replace(/-/g, "").slice(0, 10)}!1`;
 
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-        user_id,
-        { password: tempPassword },
-      );
+      const { error: updateErr } =
+        await supabaseAdmin.auth.admin.updateUserById(user_id, {
+          password: tempPassword,
+        });
       if (updateErr) return json({ error: updateErr.message }, 400);
 
       const { error: profileErr } = await supabaseAdmin

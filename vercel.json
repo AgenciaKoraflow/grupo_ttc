@@ -38,7 +38,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; media-src 'self' blob: https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io; media-src 'self' blob: https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
         }
       ]
     },
@@ -69,6 +69,10 @@
     {
       "key": "VITE_SUPABASE_ANON_KEY",
       "description": "Chave anon pública do Supabase (Settings > API > anon public)"
+    },
+    {
+      "key": "VITE_SENTRY_DSN",
+      "description": "DSN do projeto Sentry (sentry.io > Project > Settings > Client Keys)"
     }
   ]
 }
