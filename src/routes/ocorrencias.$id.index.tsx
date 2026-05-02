@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { getSignedUrl } from "@/lib/storage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Plus, Trash2, CheckCircle, RefreshCw, FileText, Upload, Camera, X, MapPin, Cable, Tag, Building, Users } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, CheckCircle, RefreshCw, FileText, Upload, Camera, X, MapPin, Cable, Tag, Building, Users, Package, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -84,11 +87,23 @@ function OcorrenciaDetailPage() {
   const isAdminOrSupervisor = isAdmin || isSupervisor;
   const {
     ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais,
+    materials, ocorrenciaMateriais, addOcorrenciaMaterial, removeOcorrenciaMaterial,
     vincularEquipe, addServico, deleteServico, addFotoServico, deleteFotoServico,
     addFotoFinal, deleteFotoFinal, finalizarOcorrencia, reabrirOcorrencia, deleteOcorrencia,
+    loadOcorrenciaDetail,
   } = useData();
   const navigate = useNavigate();
+  const [detailLoading, setDetailLoading] = useState(true);
   const [showServicoDialog, setShowServicoDialog] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setDetailLoading(true);
+    loadOcorrenciaDetail(id).finally(() => {
+      if (active) setDetailLoading(false);
+    });
+    return () => { active = false; };
+  }, [id, loadOcorrenciaDetail]);
   const [showFinalizar, setShowFinalizar] = useState(false);
   const [showExcluir, setShowExcluir] = useState(false);
   const [novoTipoId, setNovoTipoId] = useState('');
@@ -100,8 +115,38 @@ function OcorrenciaDetailPage() {
   const [urlOverrides, setUrlOverrides] = useState<Record<string, string>>({});
   const refreshingIds = useRef(new Set<string>());
   const [pendingPreview, setPendingPreview] = useState<{ key: string; url: string } | null>(null);
+  const [matComboOpen, setMatComboOpen] = useState(false);
+  const [matSearch, setMatSearch] = useState('');
+  const [newMatId, setNewMatId] = useState('');
+  const [newMatQty, setNewMatQty] = useState('');
 
   const oc = ocorrencias.find(o => o.id === id);
+
+  if (!oc && detailLoading) return (
+    <AppLayout>
+      <div className="p-6 max-w-5xl mx-auto space-y-5">
+        <div className="flex items-center gap-3 animate-pulse">
+          <div className="h-9 w-9 rounded-xl bg-muted" />
+          <div className="h-6 w-48 rounded-lg bg-muted" />
+          <div className="h-5 w-20 rounded-full bg-muted" />
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-card p-5 animate-pulse">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-16 rounded bg-muted" />
+                <div className="h-4 w-24 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-3 animate-pulse">
+          <div className="h-5 w-40 rounded bg-muted" />
+          <div className="h-24 w-full rounded-xl bg-muted" />
+        </div>
+      </div>
+    </AppLayout>
+  );
 
   if (!oc) return (
     <AppLayout>
@@ -114,6 +159,26 @@ function OcorrenciaDetailPage() {
   );
 
   const ocServicos = servicos.filter(s => s.ocorrencia_id === oc.id).sort((a, b) => a.ordem - b.ordem);
+  const ocMateriais = ocorrenciaMateriais.filter(om => om.ocorrencia_id === oc.id);
+  const activeMaterials = materials.filter(m => m.ativo);
+  const matSearchLower = matSearch.toLowerCase();
+  const filteredMaterials = activeMaterials.filter(m =>
+    m.name.toLowerCase().includes(matSearchLower)
+  );
+
+  const handleAddMaterial = () => {
+    if (!newMatId || !newMatQty || Number(newMatQty) <= 0) return;
+    addOcorrenciaMaterial({
+      ocorrencia_id: oc.id,
+      material_id: newMatId,
+      quantity: Number(newMatQty),
+    });
+    setNewMatId('');
+    setNewMatQty('');
+    setMatSearch('');
+  };
+
+  const selectedMaterial = materials.find(m => m.id === newMatId);
   const ocFotosFinais = fotosFinais.filter(f => f.ocorrencia_id === oc.id);
   const retiradaFios = ocFotosFinais.filter(f => f.categoria === 'retirada_fios');
   const ctops = ocFotosFinais.filter(f => f.categoria === 'ctop');
@@ -376,7 +441,27 @@ function OcorrenciaDetailPage() {
             )}
           </div>
 
-          {ocServicos.length === 0 ? (
+          {detailLoading ? (
+            <div className="space-y-3 animate-pulse">
+              {[1, 2].map(i => (
+                <div key={i} className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-border/50 flex items-center gap-3"
+                    style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}>
+                    <div className="h-7 w-7 rounded-lg bg-muted" />
+                    <div className="h-4 w-32 rounded bg-muted" />
+                  </div>
+                  <div className="p-5 grid md:grid-cols-2 gap-5">
+                    {[0, 1].map(j => (
+                      <div key={j} className="space-y-3">
+                        <div className="h-3 w-20 rounded bg-muted" />
+                        <div className="h-20 w-full rounded-xl bg-muted" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : ocServicos.length === 0 ? (
             <div
               className="rounded-2xl border border-dashed border-border bg-card py-12 text-center"
             >
@@ -534,6 +619,165 @@ function OcorrenciaDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* Materiais Utilizados */}
+        <div className="space-y-3 animate-fade-in-up delay-100">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-base font-bold text-foreground">Materiais Utilizados</h2>
+            <span
+              className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+              style={{ background: 'oklch(0.50 0.225 255 / 0.12)', color: 'oklch(0.42 0.18 255)' }}
+            >
+              {ocMateriais.length}
+            </span>
+            <span className="text-xs text-muted-foreground">(opcional)</span>
+          </div>
+
+          {ocMateriais.length > 0 && (
+            <div
+              className="rounded-xl border border-border/60 bg-card overflow-hidden"
+              style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.05)' }}
+            >
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50" style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}>
+                    <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Material</th>
+                    <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-2.5">Quantidade</th>
+                    <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Unidade</th>
+                    {canEditOcorrencia && !isFinalizada && <th className="w-10 px-2" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {ocMateriais.map((om) => (
+                    <tr key={om.id}>
+                      <td className="px-4 py-2.5 font-medium">{om.material?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+                        {Number(om.quantity) % 1 === 0
+                          ? Number(om.quantity).toLocaleString('pt-BR')
+                          : Number(om.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{om.material?.unit ?? '—'}</td>
+                      {canEditOcorrencia && !isFinalizada && (
+                        <td className="px-2 py-2.5">
+                          <button
+                            onClick={() => removeOcorrenciaMaterial(om.id)}
+                            aria-label={`Remover ${om.material?.name}`}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {canEditOcorrencia && !isFinalizada && (
+            <div
+              className="rounded-xl border border-border/60 bg-card p-4"
+              style={{ boxShadow: '0 1px 3px oklch(0.115 0.028 252 / 0.04)' }}
+            >
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                Adicionar material
+              </p>
+              <div className="flex flex-wrap gap-2 items-end">
+                {/* Combobox de material */}
+                <div className="flex-1 min-w-[200px]">
+                  <p className="text-xs text-muted-foreground mb-1.5">Material</p>
+                  <Popover open={matComboOpen} onOpenChange={setMatComboOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        role="combobox"
+                        aria-expanded={matComboOpen}
+                        className="w-full flex items-center justify-between h-9 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className={cn(newMatId ? 'text-foreground' : 'text-muted-foreground')}>
+                          {newMatId ? materials.find(m => m.id === newMatId)?.name : 'Selecionar material...'}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[280px]" align="start">
+                      <Command>
+                        <CommandInput
+                          placeholder="Buscar material..."
+                          value={matSearch}
+                          onValueChange={setMatSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nenhum material encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {filteredMaterials.map((m) => (
+                              <CommandItem
+                                key={m.id}
+                                value={m.id}
+                                onSelect={() => {
+                                  setNewMatId(m.id);
+                                  setMatComboOpen(false);
+                                  setMatSearch('');
+                                }}
+                              >
+                                <Check
+                                  className={cn('mr-2 h-4 w-4', newMatId === m.id ? 'opacity-100' : 'opacity-0')}
+                                  aria-hidden="true"
+                                />
+                                <span className="flex-1">{m.name}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">{m.unit}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Quantidade */}
+                <div className="w-28">
+                  <p className="text-xs text-muted-foreground mb-1.5">
+                    Quantidade{selectedMaterial ? ` (${selectedMaterial.unit})` : ''}
+                  </p>
+                  <Input
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    value={newMatQty}
+                    onChange={(e) => setNewMatQty(e.target.value)}
+                    placeholder="0"
+                    className="h-9"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddMaterial()}
+                  />
+                </div>
+
+                {/* Botão Adicionar */}
+                <Button
+                  size="sm"
+                  className="h-9 gap-1.5 shrink-0"
+                  disabled={!newMatId || !newMatQty || Number(newMatQty) <= 0}
+                  onClick={handleAddMaterial}
+                  style={{
+                    background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Adicionar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {ocMateriais.length === 0 && (isFinalizada || !canEditOcorrencia) && (
+            <div
+              className="rounded-xl border border-dashed border-border bg-card py-8 text-center"
+            >
+              <Package className="h-8 w-8 text-muted-foreground/25 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Nenhum material registrado</p>
             </div>
           )}
         </div>

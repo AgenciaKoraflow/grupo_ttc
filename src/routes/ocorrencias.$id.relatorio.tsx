@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useData } from "@/contexts/DataContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,25 @@ function StatusBadge({ status }: { status: string }) {
 function RelatorioPage() {
   const { id } = Route.useParams();
   usePageTitle(`Relatório #${id}`);
-  const { ocorrencias, servicos, fotosServico, fotosFinais } = useData();
+  const { ocorrencias, servicos, fotosServico, fotosFinais, loadOcorrenciaDetail } = useData();
+  const [detailLoading, setDetailLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    loadOcorrenciaDetail(id).finally(() => {
+      if (active) setDetailLoading(false);
+    });
+    return () => { active = false; };
+  }, [id, loadOcorrenciaDetail]);
 
   const oc = ocorrencias.find(o => o.id === id);
+
+  if (!oc && detailLoading) return (
+    <AppLayout>
+      <div className="p-6 text-center text-muted-foreground">Carregando relatório...</div>
+    </AppLayout>
+  );
+
   if (!oc) return (
     <AppLayout>
       <div className="p-6 text-center text-muted-foreground">Ocorrência não encontrada</div>

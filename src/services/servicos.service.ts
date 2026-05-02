@@ -53,6 +53,25 @@ export async function fetchServicos(): Promise<ServicoOcorrencia[]> {
   return (data ?? []).map(row => mapRow(row as unknown as ServicoRow));
 }
 
+export async function fetchServicosByOcorrencia(ocorrenciaId: string): Promise<ServicoOcorrencia[]> {
+  const { data, error } = await supabase
+    .from('servicos')
+    .select(`
+      id, ocorrencia_id, tipo_servico_id, observacao, status_item, ordem,
+      created_by, created_at, updated_at,
+      tipos_servico (id, nome, descricao, ativo, created_at, updated_at)
+    `)
+    .eq('ocorrencia_id', ocorrenciaId)
+    .order('ordem');
+
+  if (error) {
+    console.error('[servicos.service] fetchByOcorrencia:', error);
+    return [];
+  }
+
+  return (data ?? []).map(row => mapRow(row as unknown as ServicoRow));
+}
+
 export type ServicoInsert = {
   id: string;
   ocorrencia_id: string;

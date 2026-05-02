@@ -86,15 +86,19 @@ function mapRow(row: OcorrenciaRow): Ocorrencia {
   };
 }
 
+const OCORRENCIA_SELECT = `
+  id, id_ocorrencia, municipio, cabo_primaria, at, nome_at, contratada, gerente_icomon,
+  operador_id, equipe_id, assigned_to, status, created_at, updated_at, created_by,
+  finalized_at, finalized_by, reopened_at, reopened_by,
+  equipes (id, nome, ativa, created_at, updated_at)
+`;
+
+export const OCORRENCIAS_PAGE_SIZE = 50;
+
 export async function fetchOcorrencias(): Promise<Ocorrencia[]> {
   const { data, error } = await supabase
     .from('ocorrencias')
-    .select(`
-      id, id_ocorrencia, municipio, cabo_primaria, at, nome_at, contratada, gerente_icomon,
-      operador_id, equipe_id, assigned_to, status, created_at, updated_at, created_by,
-      finalized_at, finalized_by, reopened_at, reopened_by,
-      equipes (id, nome, ativa, created_at, updated_at)
-    `)
+    .select(OCORRENCIA_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -103,6 +107,43 @@ export async function fetchOcorrencias(): Promise<Ocorrencia[]> {
   }
 
   return (data ?? []).map(row => mapRow(row as unknown as OcorrenciaRow));
+}
+
+export async function fetchOcorrenciasPaged(
+  offset: number,
+  limit = OCORRENCIAS_PAGE_SIZE,
+): Promise<{ data: Ocorrencia[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from('ocorrencias')
+    .select(OCORRENCIA_SELECT)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error('[ocorrencias.service] fetchPaged:', error);
+    return { data: [], hasMore: false };
+  }
+
+  const rows = data ?? [];
+  return {
+    data: rows.map(row => mapRow(row as unknown as OcorrenciaRow)),
+    hasMore: rows.length === limit,
+  };
+}
+
+export async function fetchOcorrenciaById(id: string): Promise<Ocorrencia | null> {
+  const { data, error } = await supabase
+    .from('ocorrencias')
+    .select(OCORRENCIA_SELECT)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') console.error('[ocorrencias.service] fetchById:', error);
+    return null;
+  }
+
+  return data ? mapRow(data as unknown as OcorrenciaRow) : null;
 }
 
 export async function insertOcorrencia(payload: OcorrenciaInsert): Promise<void> {

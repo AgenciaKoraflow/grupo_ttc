@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type {
   Ocorrencia, Equipe, TipoServico, ServicoOcorrencia,
   FotoServico, FotoOcorrenciaFinal, Profile, OcorrenciaStatus, UserRole,
-  LogTipo, LogCategoria,
+  LogTipo, LogCategoria, Material, OcorrenciaMaterial,
 } from '@/types';
 import { getSignedUrl } from '@/lib/storage';
 import { useAuth } from './AuthContext';
@@ -13,6 +13,7 @@ import * as TiposServicoService from '@/services/tiposServico.service';
 import * as ServicosService from '@/services/servicos.service';
 import * as FotosService from '@/services/fotos.service';
 import * as ProfilesService from '@/services/profiles.service';
+import * as MateriaisService from '@/services/materiais.service';
 
 export type ImportMode = 'skip' | 'replace';
 
@@ -25,6 +26,9 @@ export interface ImportResult {
 
 interface DataStore {
   ocorrencias: Ocorrencia[];
+  hasMoreOcorrencias: boolean;
+  loadMoreOcorrencias: () => Promise<void>;
+  loadOcorrenciaDetail: (id: string) => Promise<void>;
   equipes: Equipe[];
   tiposServico: TipoServico[];
   servicos: ServicoOcorrencia[];
@@ -54,49 +58,36 @@ interface DataStore {
   vincularEquipe: (ocorrenciaId: string, equipeId: string | null) => void;
   designarOperador: (ocorrenciaId: string, operadorId: string | null) => void;
   deleteOcorrencia: (id: string) => void;
+  materials: Material[];
+  ocorrenciaMateriais: OcorrenciaMaterial[];
+  addMaterial: (data: { name: string; unit: string }) => Material;
+  updateMaterial: (id: string, data: Partial<Material>) => void;
+  deleteMaterial: (id: string) => void;
+  addOcorrenciaMaterial: (data: { ocorrencia_id: string; material_id: string; quantity: number }) => OcorrenciaMaterial;
+  removeOcorrenciaMaterial: (id: string) => void;
 }
 
 const DataContext = createContext<DataStore | null>(null);
-
-interface LoadedData {
-  equipes: Equipe[];
-  tiposServico: TipoServico[];
-  ocorrencias: Ocorrencia[];
-  servicos: ServicoOcorrencia[];
-  fotosServico: FotoServico[];
-  fotosFinais: FotoOcorrenciaFinal[];
-  profiles: Profile[];
-}
-
-async function loadAllData(): Promise<LoadedData> {
-  try {
-    const [equipes, tiposServico, ocorrencias, servicos, fotosServico, fotosFinais, profiles] =
-      await Promise.all([
-        EquipesService.fetchEquipes(),
-        TiposServicoService.fetchTiposServico(),
-        OcorrenciasService.fetchOcorrencias(),
-        ServicosService.fetchServicos(),
-        FotosService.fetchFotosServico(),
-        FotosService.fetchFotosFinais(),
-        ProfilesService.fetchProfiles(),
-      ]);
-    return { equipes, tiposServico, ocorrencias, servicos, fotosServico, fotosFinais, profiles };
-  } catch (error) {
-    console.error('[Data] loadAllData:', error);
-    return { equipes: [], tiposServico: [], ocorrencias: [], servicos: [], fotosServico: [], fotosFinais: [], profiles: [] };
-  }
-}
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { addLog } = useLog();
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
+  const [hasMoreOcorrencias, setHasMoreOcorrencias] = useState(true);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServico[]>([]);
   const [servicos, setServicos] = useState<ServicoOcorrencia[]>([]);
   const [fotosServico, setFotosServico] = useState<FotoServico[]>([]);
   const [fotosFinais, setFotosFinais] = useState<FotoOcorrenciaFinal[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [ocorrenciaMateriais, setOcorrenciaMateriais] = useState<OcorrenciaMaterial[]>([]);
+
+  // Refs to avoid stale closures without causing callback churn
+  const dbFetchOffset = useRef(0);
+  const loadedDetailIds = useRef(new Set<string>());
+  const ocorrenciasRef = useRef<Ocorrencia[]>([]);
+  useEffect(() => { ocorrenciasRef.current = ocorrencias; }, [ocorrencias]);
 
   const logAction = useCallback((
     tipo: LogTipo,
@@ -117,16 +108,94 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, [user, addLog]);
 
+  // ─── Initial load (sem servicos/fotos — lazy) ──────────────────────────────
+
   useEffect(() => {
-    loadAllData().then(data => {
-      setEquipes(data.equipes);
-      setTiposServico(data.tiposServico);
-      setOcorrencias(data.ocorrencias);
-      setServicos(data.servicos);
-      setFotosServico(data.fotosServico);
-      setFotosFinais(data.fotosFinais);
-      setProfiles(data.profiles);
-    });
+    const init = async () => {
+      const [equipes, tiposServico, profiles, materials, ocorrenciaMateriais, firstPage] =
+        await Promise.all([
+          EquipesService.fetchEquipes(),
+          TiposServicoService.fetchTiposServico(),
+          ProfilesService.fetchProfiles(),
+          MateriaisService.fetchMateriais(),
+          MateriaisService.fetchOcorrenciaMateriais(),
+          OcorrenciasService.fetchOcorrenciasPaged(0),
+        ]);
+
+      setEquipes(equipes);
+      setTiposServico(tiposServico);
+      setProfiles(profiles);
+      setMaterials(materials);
+      setOcorrenciaMateriais(ocorrenciaMateriais);
+      setOcorrencias(firstPage.data);
+      setHasMoreOcorrencias(firstPage.hasMore);
+      dbFetchOffset.current = firstPage.data.length;
+    };
+
+    void init();
+  }, []);
+
+  // ─── Paginação de ocorrências ───────────────────────────────────────────────
+
+  const loadMoreOcorrencias = useCallback(async () => {
+    const { data, hasMore } = await OcorrenciasService.fetchOcorrenciasPaged(dbFetchOffset.current);
+    if (data.length > 0) {
+      setOcorrencias(prev => {
+        const existingIds = new Set(prev.map(o => o.id));
+        const newOcs = data.filter(o => !existingIds.has(o.id));
+        return [...prev, ...newOcs];
+      });
+      dbFetchOffset.current += data.length;
+    }
+    setHasMoreOcorrencias(hasMore);
+  }, []);
+
+  // ─── Lazy loading de servicos + fotos por ocorrência ───────────────────────
+
+  const loadOcorrenciaDetail = useCallback(async (ocorrenciaId: string) => {
+    if (loadedDetailIds.current.has(ocorrenciaId)) return;
+    loadedDetailIds.current.add(ocorrenciaId);
+
+    try {
+      const ocExists = ocorrenciasRef.current.some(o => o.id === ocorrenciaId);
+
+      const [servicosData, fotosFinaisData, fetchedOc] = await Promise.all([
+        ServicosService.fetchServicosByOcorrencia(ocorrenciaId),
+        FotosService.fetchFotosFinaisByOcorrencia(ocorrenciaId),
+        ocExists ? Promise.resolve(null) : OcorrenciasService.fetchOcorrenciaById(ocorrenciaId),
+      ]);
+
+      if (fetchedOc) {
+        setOcorrencias(prev => {
+          if (prev.some(o => o.id === ocorrenciaId)) return prev;
+          return [fetchedOc, ...prev];
+        });
+      }
+
+      const servicoIds = servicosData.map(s => s.id);
+      const fotosServicoData = await FotosService.fetchFotosServicoByServicos(servicoIds);
+
+      setServicos(prev => {
+        const existingIds = new Set(prev.map(s => s.id));
+        const newItems = servicosData.filter(s => !existingIds.has(s.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+
+      setFotosServico(prev => {
+        const existingIds = new Set(prev.map(f => f.id));
+        const newItems = fotosServicoData.filter(f => !existingIds.has(f.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+
+      setFotosFinais(prev => {
+        const existingIds = new Set(prev.map(f => f.id));
+        const newItems = fotosFinaisData.filter(f => !existingIds.has(f.id));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    } catch (error) {
+      console.error('[DataContext] loadOcorrenciaDetail:', error);
+      loadedDetailIds.current.delete(ocorrenciaId);
+    }
   }, []);
 
   // ─── Ocorrências ───────────────────────────────────────────────────────────
@@ -174,7 +243,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     if (newOcs.length) {
-      setOcorrencias(prev => [...prev, ...newOcs]);
+      setOcorrencias(prev => [...newOcs, ...prev]);
       void OcorrenciasService.insertOcorrencias(insertPayloads);
     }
     return count;
@@ -252,7 +321,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         for (const rep of replacements) {
           next = next.map(o => o.id === rep.id ? { ...o, ...rep.data } : o);
         }
-        return [...next, ...newOcs];
+        return [...newOcs, ...next];
       });
 
       const run = async () => {
@@ -561,22 +630,86 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void ProfilesService.deleteProfile(id);
   }, [profiles, logAction]);
 
+  // ─── Materiais ─────────────────────────────────────────────────────────────
+
+  const addMaterial = useCallback((data: { name: string; unit: string }): Material => {
+    const now = new Date().toISOString();
+    const mat: Material = { id: crypto.randomUUID(), name: data.name, unit: data.unit, ativo: true, created_at: now, updated_at: now };
+    setMaterials(prev => [...prev, mat]);
+    void MateriaisService.insertMaterial({ id: mat.id, name: mat.name, unit: mat.unit, ativo: true });
+    return mat;
+  }, []);
+
+  const updateMaterial = useCallback((id: string, data: Partial<Material>) => {
+    const now = new Date().toISOString();
+    setMaterials(prev => prev.map(m => m.id === id ? { ...m, ...data, updated_at: now } : m));
+    const update: MateriaisService.MaterialUpdate = { updated_at: now };
+    if (data.name !== undefined) update.name = data.name;
+    if (data.unit !== undefined) update.unit = data.unit;
+    if (data.ativo !== undefined) update.ativo = data.ativo;
+    void MateriaisService.updateMaterial(id, update);
+  }, []);
+
+  const deleteMaterial = useCallback((id: string) => {
+    setMaterials(prev => prev.filter(m => m.id !== id));
+    void MateriaisService.deleteMaterial(id);
+  }, []);
+
+  const addOcorrenciaMaterial = useCallback((data: {
+    ocorrencia_id: string;
+    material_id: string;
+    quantity: number;
+  }): OcorrenciaMaterial => {
+    const mat = materials.find(m => m.id === data.material_id);
+    const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const om: OcorrenciaMaterial = {
+      id: newId,
+      ocorrencia_id: data.ocorrencia_id,
+      material_id: data.material_id,
+      material: mat,
+      quantity: data.quantity,
+      created_at: now,
+    };
+    setOcorrenciaMateriais(prev => [...prev, om]);
+    void MateriaisService.insertOcorrenciaMaterial({
+      id: newId,
+      ocorrencia_id: data.ocorrencia_id,
+      material_id: data.material_id,
+      quantity: data.quantity,
+    });
+    return om;
+  }, [materials]);
+
+  const removeOcorrenciaMaterial = useCallback((id: string) => {
+    setOcorrenciaMateriais(prev => prev.filter(om => om.id !== id));
+    void MateriaisService.deleteOcorrenciaMaterial(id);
+  }, []);
+
   // ──────────────────────────────────────────────────────────────────────────
 
   const value = useMemo(() => ({
-    ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
+    ocorrencias, hasMoreOcorrencias, loadMoreOcorrencias, loadOcorrenciaDetail,
+    equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
+    materials, ocorrenciaMateriais,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
     addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
     addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
     finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile,
     vincularEquipe, designarOperador, deleteOcorrencia,
+    addMaterial, updateMaterial, deleteMaterial,
+    addOcorrenciaMaterial, removeOcorrenciaMaterial,
   }), [
-    ocorrencias, equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
+    ocorrencias, hasMoreOcorrencias, loadMoreOcorrencias, loadOcorrenciaDetail,
+    equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
+    materials, ocorrenciaMateriais,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
     addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
     addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
     finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile,
     vincularEquipe, designarOperador, deleteOcorrencia,
+    addMaterial, updateMaterial, deleteMaterial,
+    addOcorrenciaMaterial, removeOcorrenciaMaterial,
   ]);
 
   return (

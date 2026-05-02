@@ -12,7 +12,7 @@ import {
 import {
   FileText, Clock, PlayCircle, CheckCircle, ArrowRight,
   TrendingUp, TrendingDown, Timer, Target, Users, Zap,
-  BarChart3, CalendarDays, Award,
+  BarChart3, CalendarDays, Award, Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Ocorrencia } from "@/types";
@@ -248,7 +248,7 @@ function OcorrenciaRow({ id, id_ocorrencia, municipio, status }: {
 function DashboardPage() {
   usePageTitle("Dashboard");
   const { user, isAdmin } = useAuth();
-  const { ocorrencias, equipes, profiles } = useData();
+  const { ocorrencias, equipes, profiles, materials, ocorrenciaMateriais } = useData();
   const [period, setPeriod] = useState<Period>('all');
 
   const allVisible = useMemo(
@@ -280,6 +280,24 @@ function DashboardPage() {
   // Listas rápidas
   const pendList = allVisible.filter(o => o.status === 'PENDENTE').slice(0, 5);
   const andList  = allVisible.filter(o => o.status === 'EM_ANDAMENTO').slice(0, 5);
+
+  // Top 5 materiais mais utilizados (filtrado pelo período via ocorrências visíveis)
+  const topMateriais = useMemo(() => {
+    const ocIds = new Set(filtered.map(o => o.id));
+    const totals: Record<string, number> = {};
+    ocorrenciaMateriais
+      .filter(om => ocIds.has(om.ocorrencia_id))
+      .forEach(om => {
+        totals[om.material_id] = (totals[om.material_id] ?? 0) + Number(om.quantity);
+      });
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id, total]) => {
+        const mat = materials.find(m => m.id === id);
+        return { id, name: mat?.name ?? '—', unit: mat?.unit ?? '', total };
+      });
+  }, [filtered, ocorrenciaMateriais, materials]);
 
   // top AT
   const atCount: Record<string, number> = {};
@@ -571,6 +589,52 @@ function DashboardPage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* ── Materiais Mais Utilizados ────────────────────────────────────── */}
+        {isAdmin && (
+          <SectionCard title="Materiais Mais Utilizados" icon={Package}>
+            <div className="px-5 py-4 space-y-3">
+              {topMateriais.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Sem dados de materiais no período
+                </p>
+              ) : (
+                topMateriais.map((m, i) => {
+                  const maxTotal = topMateriais[0].total;
+                  const pct = maxTotal > 0 ? Math.round((m.total / maxTotal) * 100) : 0;
+                  const totalFmt = Number(m.total) % 1 === 0
+                    ? Number(m.total).toLocaleString('pt-BR')
+                    : Number(m.total).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
+                  return (
+                    <div key={m.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-muted-foreground font-medium shrink-0">#{i + 1}</span>
+                          <span className="font-semibold text-foreground truncate" title={m.name}>{m.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="font-bold text-foreground">{totalFmt}</span>
+                          <span className="text-muted-foreground/60">{m.unit}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${pct}%`,
+                            background: i === 0
+                              ? 'linear-gradient(90deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))'
+                              : `oklch(0.50 0.225 255 / ${0.75 - i * 0.12})`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </SectionCard>
         )}

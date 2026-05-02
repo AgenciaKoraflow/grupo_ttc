@@ -18,10 +18,52 @@ export async function fetchFotosServico(): Promise<FotoServico[]> {
   })) as FotoServico[];
 }
 
+export async function fetchFotosServicoByServicos(servicoIds: string[]): Promise<FotoServico[]> {
+  if (servicoIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('fotos_servico')
+    .select('*')
+    .in('servico_id', servicoIds);
+
+  if (error) {
+    console.error('[fotos.service] fetchByServicos:', error);
+    return [];
+  }
+
+  const paths = (data ?? []).map(f => f.storage_path as string).filter(Boolean);
+  const urlMap = await getSignedUrls('fotos-servico', paths);
+
+  return (data ?? []).map(f => ({
+    ...f,
+    url: urlMap.get(f.storage_path) ?? undefined,
+  })) as FotoServico[];
+}
+
 export async function fetchFotosFinais(): Promise<FotoOcorrenciaFinal[]> {
   const { data, error } = await supabase.from('fotos_finais').select('*');
   if (error) {
     console.error('[fotos.service] fetch fotos_finais:', error);
+    return [];
+  }
+
+  const paths = (data ?? []).map(f => f.storage_path as string).filter(Boolean);
+  const urlMap = await getSignedUrls('fotos-finais', paths);
+
+  return (data ?? []).map(f => ({
+    ...f,
+    url: urlMap.get(f.storage_path) ?? undefined,
+  })) as FotoOcorrenciaFinal[];
+}
+
+export async function fetchFotosFinaisByOcorrencia(ocorrenciaId: string): Promise<FotoOcorrenciaFinal[]> {
+  const { data, error } = await supabase
+    .from('fotos_finais')
+    .select('*')
+    .eq('ocorrencia_id', ocorrenciaId);
+
+  if (error) {
+    console.error('[fotos.service] fetchFinaisByOcorrencia:', error);
     return [];
   }
 

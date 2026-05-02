@@ -92,6 +92,24 @@ export interface FotoOcorrenciaFinal {
   url?: string;
 }
 
+export interface Material {
+  id: string;
+  name: string;
+  unit: string;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OcorrenciaMaterial {
+  id: string;
+  ocorrencia_id: string;
+  material_id: string;
+  material?: Material;
+  quantity: number;
+  created_at: string;
+}
+
 export interface ImportacaoOcorrencia {
   id: string;
   arquivo_nome: string;

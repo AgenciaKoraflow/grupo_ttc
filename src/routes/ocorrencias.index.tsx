@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import {
   Search, Eye, FileText, SlidersHorizontal, Upload,
   CheckCircle, AlertCircle, MinusCircle, FileUp, X,
-  Plus, RefreshCw, Users, Hand, Trash2,
+  Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
@@ -530,7 +530,9 @@ function OcorrenciasPage() {
   usePageTitle("Ocorrências");
   const { user, isAdmin, isSupervisor, canDelete, canCreate } = useAuth();
   const isAdminOrSupervisor = isAdmin || isSupervisor;
-  const { ocorrencias, equipes, profiles, vincularEquipe, designarOperador, deleteOcorrencia } = useData();
+  const { ocorrencias, equipes, profiles, vincularEquipe, designarOperador, deleteOcorrencia,
+    hasMoreOcorrencias, loadMoreOcorrencias } = useData();
+  const [loadingMore, setLoadingMore] = useState(false);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -901,6 +903,28 @@ function OcorrenciasPage() {
           pageSize={PAGE_SIZE} onPageChange={setPage}
           className="animate-fade-in-up"
         />
+
+        {/* Carregar mais do servidor */}
+        {hasMoreOcorrencias && (
+          <div className="flex justify-center animate-fade-in-up">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-9 font-medium text-muted-foreground hover:text-foreground"
+              disabled={loadingMore}
+              onClick={async () => {
+                setLoadingMore(true);
+                await loadMoreOcorrencias();
+                setLoadingMore(false);
+              }}
+            >
+              {loadingMore
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando...</>
+                : <><ChevronDown className="h-3.5 w-3.5" /> Carregar mais ocorrências</>
+              }
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Dialog de importação */}

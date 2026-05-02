@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import {
-  LayoutDashboard, FileText, Users, Wrench, Building2, LogOut, History,
+  LayoutDashboard, FileText, Users, Wrench, Building2, LogOut, History, Package,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarGroup,
@@ -18,6 +18,7 @@ const adminItems = [
   { title: 'Equipes', url: '/equipes', icon: Building2 },
   { title: 'Usuários', url: '/usuarios', icon: Users },
   { title: 'Tipos de Serviço', url: '/tipos-servico', icon: Wrench },
+  { title: 'Materiais', url: '/materiais', icon: Package },
   { title: 'Logs', url: '/logs', icon: History },
 ];
 
@@ -26,6 +27,7 @@ const supervisorItems = [
   { title: 'Ocorrências', url: '/ocorrencias', icon: FileText },
   { title: 'Equipes', url: '/equipes', icon: Building2 },
   { title: 'Tipos de Serviço', url: '/tipos-servico', icon: Wrench },
+  { title: 'Materiais', url: '/materiais', icon: Package },
   { title: 'Logs', url: '/logs', icon: History },
 ];
 
