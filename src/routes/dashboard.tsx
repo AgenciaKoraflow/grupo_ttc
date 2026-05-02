@@ -5,6 +5,8 @@ import { useData } from "@/contexts/DataContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -12,8 +14,10 @@ import {
 import {
   FileText, Clock, PlayCircle, CheckCircle, ArrowRight,
   TrendingUp, TrendingDown, Timer, Target, Users, Zap,
-  BarChart3, CalendarDays, Award, Package,
+  BarChart3, CalendarDays, Award, Package, ChevronDown, X,
 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { Ocorrencia } from "@/types";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -202,18 +206,32 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
-type Period = '30d' | '90d' | '12m' | 'all';
+type Period = 'semana' | 'mes' | 'ano' | 'custom';
+type AppliedRange = { from: Date; to: Date };
 
-const PERIOD_LABELS: Record<Period, string> = {
-  '30d': '30 dias', '90d': '90 dias', '12m': '12 meses', 'all': 'Tudo',
+const QUICK_PERIODS = ['semana', 'mes', 'ano'] as const;
+const PERIOD_LABELS: Record<typeof QUICK_PERIODS[number], string> = {
+  semana: 'Semana', mes: 'Mês', ano: 'Ano',
 };
 
-function filterByPeriod(ocs: Ocorrencia[], period: Period): Ocorrencia[] {
-  if (period === 'all') return ocs;
+function filterByPeriod(
+  ocs: Ocorrencia[],
+  period: Period,
+  custom?: AppliedRange | null,
+): Ocorrencia[] {
+  if (period === 'custom' && custom) {
+    const from = custom.from.getTime();
+    const to = custom.to.getTime() + 86_400_000 - 1;
+    return ocs.filter(o => { const t = new Date(o.created_at).getTime(); return t >= from && t <= to; });
+  }
   const now = Date.now();
-  const days = period === '30d' ? 30 : period === '90d' ? 90 : 365;
-  const cutoff = now - days * 86_400_000;
-  return ocs.filter(o => new Date(o.created_at).getTime() >= cutoff);
+  if (period === 'semana') return ocs.filter(o => new Date(o.created_at).getTime() >= now - 7 * 86_400_000);
+  if (period === 'mes') {
+    const d = new Date();
+    return ocs.filter(o => new Date(o.created_at).getTime() >= new Date(d.getFullYear(), d.getMonth(), 1).getTime());
+  }
+  if (period === 'ano') return ocs.filter(o => new Date(o.created_at).getTime() >= new Date(new Date().getFullYear(), 0, 1).getTime());
+  return ocs;
 }
 
 function OcorrenciaRow({ id, id_ocorrencia, municipio, status }: {
@@ -249,7 +267,11 @@ function DashboardPage() {
   usePageTitle("Dashboard");
   const { user, isAdmin } = useAuth();
   const { ocorrencias, equipes, profiles, materials, ocorrenciaMateriais } = useData();
-  const [period, setPeriod] = useState<Period>('all');
+  const [period, setPeriod] = useState<Period>('mes');
+  const [appliedRange, setAppliedRange] = useState<AppliedRange | null>(null);
+  const [calRange, setCalRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedEquipeId, setSelectedEquipeId] = useState<string>('');
 
   const allVisible = useMemo(
     () => isAdmin
@@ -258,7 +280,21 @@ function DashboardPage() {
     [isAdmin, ocorrencias, user?.equipe_id, user?.id]
   );
 
-  const filtered = useMemo(() => filterByPeriod(allVisible, period), [allVisible, period]);
+  const filteredByEquipe = useMemo(
+    () => selectedEquipeId ? allVisible.filter(o => o.equipe_id === selectedEquipeId) : allVisible,
+    [allVisible, selectedEquipeId],
+  );
+
+  const filtered = useMemo(
+    () => filterByPeriod(filteredByEquipe, period, appliedRange),
+    [filteredByEquipe, period, appliedRange],
+  );
+
+  const periodLabel = period === 'custom' && appliedRange
+    ? `${format(appliedRange.from, 'dd/MM')} – ${format(appliedRange.to, 'dd/MM/yy')}`
+    : period === 'semana' ? 'Últimos 7 dias'
+    : period === 'mes' ? 'Este mês'
+    : 'Este ano';
 
   // KPIs
   const total = filtered.length;
@@ -278,8 +314,8 @@ function DashboardPage() {
   const operadorData = useMemo(() => byOperador(filtered, profiles), [filtered, profiles]);
 
   // Listas rápidas
-  const pendList = allVisible.filter(o => o.status === 'PENDENTE').slice(0, 5);
-  const andList  = allVisible.filter(o => o.status === 'EM_ANDAMENTO').slice(0, 5);
+  const pendList = filteredByEquipe.filter(o => o.status === 'PENDENTE').slice(0, 5);
+  const andList  = filteredByEquipe.filter(o => o.status === 'EM_ANDAMENTO').slice(0, 5);
 
   // Top 5 materiais mais utilizados (filtrado pelo período via ocorrências visíveis)
   const topMateriais = useMemo(() => {
@@ -319,40 +355,152 @@ function DashboardPage() {
             </p>
           </div>
 
-          {/* Period selector */}
-          <div
-            className="flex items-center gap-1 p-1 rounded-xl border border-border/60 bg-card"
-            role="group"
-            aria-label="Filtro por período"
-          >
-            {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                aria-pressed={period === p}
-                aria-label={`Período: ${PERIOD_LABELS[p]}`}
-                className={cn(
-                  'px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  period === p
-                    ? 'text-white'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                style={period === p ? {
-                  background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
-                  boxShadow: '0 2px 8px oklch(0.50 0.225 255 / 0.35)',
-                } : undefined}
-              >
-                {PERIOD_LABELS[p]}
-              </button>
-            ))}
+          {/* Filters: period + equipe */}
+          <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* Quick pills */}
+            <div
+              className="flex items-center gap-1 p-1 rounded-xl border border-border/60 bg-card"
+              role="group"
+              aria-label="Filtro rápido por período"
+            >
+              {QUICK_PERIODS.map(p => (
+                <button
+                  key={p}
+                  onClick={() => { setPeriod(p); setAppliedRange(null); }}
+                  aria-pressed={period === p}
+                  className={cn(
+                    'px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    period === p ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  style={period === p ? {
+                    background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
+                    boxShadow: '0 2px 8px oklch(0.50 0.225 255 / 0.35)',
+                  } : undefined}
+                >
+                  {PERIOD_LABELS[p]}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom date range picker */}
+            <Popover open={pickerOpen} onOpenChange={open => {
+              setPickerOpen(open);
+              if (open) setCalRange(appliedRange ?? undefined);
+              else setCalRange(undefined);
+            }}>
+              <PopoverTrigger asChild>
+                <button
+                  aria-pressed={period === 'custom'}
+                  aria-label="Intervalo personalizado de datas"
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border',
+                    period === 'custom'
+                      ? 'text-white border-transparent'
+                      : 'text-muted-foreground border-border/60 bg-card hover:text-foreground'
+                  )}
+                  style={period === 'custom' ? {
+                    background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
+                    boxShadow: '0 2px 8px oklch(0.50 0.225 255 / 0.35)',
+                  } : undefined}
+                >
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                  <span className="max-w-[130px] truncate">
+                    {period === 'custom' && appliedRange
+                      ? `${format(appliedRange.from, 'dd/MM')} – ${format(appliedRange.to, 'dd/MM/yy')}`
+                      : 'Personalizado'
+                    }
+                  </span>
+                  {period === 'custom'
+                    ? (
+                      <X
+                        className="h-3 w-3 shrink-0 opacity-70 hover:opacity-100"
+                        onClick={(e: React.MouseEvent) => { e.stopPropagation(); setPeriod('mes'); setAppliedRange(null); setPickerOpen(false); }}
+                      />
+                    )
+                    : <ChevronDown className={cn('h-3 w-3 shrink-0 opacity-60 transition-transform', pickerOpen && 'rotate-180')} />
+                  }
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end" sideOffset={8}>
+                <Calendar
+                  mode="range"
+                  selected={calRange}
+                  onSelect={range => setCalRange(range?.from ? range as { from: Date; to?: Date } : undefined)}
+                  numberOfMonths={1}
+                  locale={ptBR}
+                  captionLayout="dropdown"
+                  fromYear={2020}
+                  toYear={new Date().getFullYear()}
+                  disabled={{ after: new Date() }}
+                />
+                <div className="border-t border-border/60 flex items-center justify-between gap-2 p-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => setCalRange(undefined)}
+                  >
+                    Limpar seleção
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="text-xs h-8"
+                    disabled={!calRange?.from || !calRange?.to}
+                    onClick={() => {
+                      if (calRange?.from && calRange?.to) {
+                        setAppliedRange({ from: calRange.from, to: calRange.to });
+                        setPeriod('custom');
+                        setPickerOpen(false);
+                      }
+                    }}
+                  >
+                    Aplicar
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {/* Equipe filter — admin only */}
+          {isAdmin && equipes.length > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <select
+                  id="equipe-filter"
+                  aria-label="Filtrar por equipe"
+                  value={selectedEquipeId}
+                  onChange={e => setSelectedEquipeId(e.target.value)}
+                  className="appearance-none pl-8 pr-7 py-1.5 rounded-xl border border-border/60 bg-card text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer transition-all duration-150 hover:border-border"
+                >
+                  <option value="">Todas as equipes</option>
+                  {equipes.map(eq => (
+                    <option key={eq.id} value={eq.id}>{eq.nome}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+              </div>
+              {selectedEquipeId && (
+                <button
+                  onClick={() => setSelectedEquipeId('')}
+                  aria-label="Limpar filtro de equipe"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Limpar</span>
+                </button>
+              )}
+            </div>
+          )}
+          </div>{/* end flex-col filters wrapper */}
         </div>
 
         {/* ── KPI Row ─────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" role="region" aria-label="Indicadores principais">
           <KpiCard label="Total" value={total} icon={FileText}
             color={C.primary} bg="oklch(0.50 0.225 255 / 0.12)"
-            trendLabel={`${period === 'all' ? 'Geral' : PERIOD_LABELS[period]}`} trend="neutral" />
+            trendLabel={periodLabel} trend="neutral" />
           <KpiCard label="Pendentes" value={pendentes} icon={Clock}
             color={C.pending} bg="oklch(0.80 0.165 70 / 0.15)" delay="delay-75"
             trendLabel="Aguardando início" />
