@@ -65,7 +65,7 @@ function RelatorioPage() {
   } = useData();
   const [detailLoading, setDetailLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -97,9 +97,15 @@ function RelatorioPage() {
       </AppLayout>
     );
 
+  // Sorted by tipo_servico_id first to group equal services, then by ordem
   const ocServicos = servicos
     .filter((s) => s.ocorrencia_id === oc.id)
-    .sort((a, b) => a.ordem - b.ordem);
+    .sort((a, b) => {
+      if (a.tipo_servico_id < b.tipo_servico_id) return -1;
+      if (a.tipo_servico_id > b.tipo_servico_id) return 1;
+      return a.ordem - b.ordem;
+    });
+
   const retiradaFios = fotosFinais.filter(
     (f) => f.ocorrencia_id === oc.id && f.categoria === "retirada_fios",
   );
@@ -107,46 +113,39 @@ function RelatorioPage() {
     (f) => f.ocorrencia_id === oc.id && f.categoria === "ctop",
   );
   const dataAtual = new Date().toLocaleDateString("pt-BR");
-
   const isFinalizada = oc.status === "FINALIZADA";
 
-  const downloadPDF = async () => {
-    const element = reportRef.current;
-    if (!element || downloading || !isFinalizada) return;
+  // 1 service per page: 520px photos don't allow 2 services per A4 page
+  const servicePages = ocServicos.map((sv) => [sv]);
+  const hasExtras = retiradaFios.length > 0 || ctops.length > 0;
 
+  const downloadPDF = async () => {
+    if (!pdfContainerRef.current || downloading || !isFinalizada) return;
     setDownloading(true);
     try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: "#ffffff",
-        logging: false,
-        imageTimeout: 15000,
-      });
+      const pageEls = Array.from(
+        pdfContainerRef.current.querySelectorAll<HTMLElement>(".pdf-a4-page"),
+      );
+      if (pageEls.length === 0) return;
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF({
         unit: "mm",
         format: "a4",
         orientation: "portrait",
       });
 
-      const pageWidth = pdf.internal.pageSize.getWidth(); // 210 mm
-      const pageHeight = pdf.internal.pageSize.getHeight(); // 297 mm
-      const scaledImgHeight = (canvas.height * pageWidth) / canvas.width;
-
-      let heightLeft = scaledImgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "JPEG", 0, position, pageWidth, scaledImgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, pageWidth, scaledImgHeight);
-        heightLeft -= pageHeight;
+      for (let i = 0; i < pageEls.length; i++) {
+        const canvas = await html2canvas(pageEls[i], {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          logging: false,
+          imageTimeout: 15000,
+        });
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
       }
 
       const dateStr = new Date().toISOString().split("T")[0];
@@ -156,10 +155,365 @@ function RelatorioPage() {
     }
   };
 
+  // PDF render helpers — defined as functions to produce fresh elements each call
+
+  const renderPDFFooter = () => (
+    <div
+      style={{
+        background: "#0f172a",
+        color: "#cbd5e1",
+        padding: "12px 32px",
+        fontSize: 11,
+        textAlign: "center",
+        flexShrink: 0,
+      }}
+    >
+      Este documento contém informações confidenciais e é destinado
+      exclusivamente ao seu destinatário.
+    </div>
+  );
+
+  const renderPDFExtras = () => (
+    <>
+      {retiradaFios.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              borderBottom: "2px solid #e2e8f0",
+              paddingBottom: 10,
+              marginBottom: 14,
+              color: "#0f172a",
+            }}
+          >
+            Retirada de Fios
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 16,
+            }}
+          >
+            {retiradaFios.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <img
+                  src={f.url}
+                  alt="Retirada de fios"
+                  crossOrigin="anonymous"
+                  style={{ width: "100%", height: 160, objectFit: "cover" }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {ctops.length > 0 && (
+        <div>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              borderBottom: "2px solid #e2e8f0",
+              paddingBottom: 10,
+              marginBottom: 14,
+              color: "#0f172a",
+            }}
+          >
+            CTOP's
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 16,
+            }}
+          >
+            {ctops.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <img
+                  src={f.url}
+                  alt="CTOP"
+                  crossOrigin="anonymous"
+                  style={{ width: "100%", height: 160, objectFit: "cover" }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const renderPDFPageHeader = () => (
+    <>
+      <div
+        style={{
+          background: "linear-gradient(to right, #0f172a, #1e293b)",
+          color: "white",
+          padding: "20px 32px",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 24,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
+              Relatório de Preventiva — {oc.id_ocorrencia} |{" "}
+              {oc.cabo_primaria || "—"}
+            </div>
+            <div style={{ color: "#cbd5e1", fontSize: 12 }}>
+              Soluções em Serviços e Inteligência
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 12,
+            }}
+          >
+            <img src="/logo-ttc.png" alt="Logo TTC" style={{ height: 48 }} />
+            <div style={{ fontSize: 11, color: "white", fontWeight: 600 }}>
+              {dataAtual}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: "#f8fafc",
+          borderBottom: "4px solid #0f172a",
+          padding: "16px 32px",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: "14px 20px",
+          }}
+        >
+          {(
+            [
+              ["EMPRESA", "TTC"],
+              ["ID PRIMÁRIA", oc.id_ocorrencia],
+              ["MUNICÍPIO", oc.municipio],
+              ["AT", oc.at || "—"],
+              ["CABO/PRIMÁRIA", oc.cabo_primaria || "—"],
+              ["NOME AT", oc.nome_at || "—"],
+              ["CONTRATADA", oc.contratada || "—"],
+              ["EQUIPE", oc.equipe?.nome || "—"],
+            ] as [string, string][]
+          ).map(([label, value]) => (
+            <div key={label}>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#475569",
+                  textTransform: "uppercase",
+                  marginBottom: 3,
+                }}
+              >
+                {label}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
+                {value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: "white",
+          borderBottom: "2px solid #cbd5e1",
+          padding: "12px 32px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            color: "#475569",
+          }}
+        >
+          Status da Ocorrência
+        </span>
+        <StatusBadge status={oc.status} />
+      </div>
+    </>
+  );
+
+  const renderPDFService = (sv: (typeof ocServicos)[0], globalIdx: number) => {
+    const svFotos = fotosServico.filter((f) => f.servico_id === sv.id);
+    const fotosAntes = svFotos.filter((f) => f.tipo_foto === "antes");
+    const fotosDepois = svFotos.filter((f) => f.tipo_foto === "depois");
+    const grupos = [
+      { fotos: fotosAntes, label: "ANTES", cor: "#f59e0b" },
+      { fotos: fotosDepois, label: "DEPOIS", cor: "#22c55e" },
+    ];
+    return (
+      <div key={sv.id}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              fontWeight: 700,
+              fontSize: 13,
+              flexShrink: 0,
+            }}
+          >
+            {globalIdx + 1}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+              {sv.tipo_servico?.nome}
+            </div>
+            {sv.observacao && (
+              <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
+                {sv.observacao}
+              </div>
+            )}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              border: "1px solid #e2e8f0",
+              borderRadius: 4,
+              padding: "2px 8px",
+              color: "#64748b",
+            }}
+          >
+            {sv.status_item}
+          </div>
+        </div>
+
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}
+        >
+          {grupos.map(({ fotos, label, cor }) => (
+            <div key={label}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 10,
+                }}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: cor,
+                    display: "inline-block",
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{ fontSize: 11, fontWeight: 700, color: "#0f172a" }}
+                >
+                  {label}
+                </span>
+              </div>
+              {fotos.length === 0 ? (
+                <div
+                  style={{
+                    background: "#f1f5f9",
+                    borderRadius: 8,
+                    height: 100,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#94a3b8",
+                    fontSize: 11,
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  Sem fotos registradas
+                </div>
+              ) : (
+                <>
+                  {fotos.map((f) => (
+                    <img
+                      key={f.id}
+                      src={f.url}
+                      alt={label}
+                      crossOrigin="anonymous"
+                      style={{
+                        height: 520,
+                        width: "100%",
+                        objectFit: "cover",
+                        borderRadius: 8,
+                        border: "1px solid #e2e8f0",
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AppLayout>
-      <div className="min-h-screen bg-white h-full">
-        {/* Controles — excluídos da captura do PDF */}
+      <div
+        className="min-h-screen bg-white h-full"
+        style={{ position: "relative" }}
+      >
+        {/* Controles — excluídos do PDF */}
         <div className="sticky top-0 z-10 bg-white border-b p-4 flex items-center justify-between">
           <Link to="/ocorrencias/$id" params={{ id: oc.id }}>
             <Button variant="ghost" size="sm" className="gap-2">
@@ -196,9 +550,9 @@ function RelatorioPage() {
           </div>
         </div>
 
-        {/* Conteúdo capturado para o PDF */}
+        {/* Relatório visível (para leitura em tela) */}
         <div className="max-w-4xl mx-auto">
-          <div ref={reportRef} className="bg-white">
+          <div className="bg-white">
             {/* Cabeçalho */}
             <div className="bg-linear-to-r from-slate-900 to-slate-800 text-white p-8">
               <div className="flex items-start justify-between gap-6">
@@ -305,61 +659,49 @@ function RelatorioPage() {
                         </Badge>
                       </div>
 
-                      {/* Antes/Depois sempre na mesma linha, lado a lado */}
+                      {/* Antes/Depois lado a lado */}
                       <div className="grid grid-cols-2 gap-8">
-                        <div>
-                          <div className="flex items-center gap-2 mb-4">
-                            <span className="inline-block h-3 w-3 rounded-full bg-amber-400" />
-                            <p className="font-bold text-sm text-slate-900">
-                              ANTES
-                            </p>
-                          </div>
-                          {fotosAntes.length === 0 ? (
-                            <div className="bg-slate-100 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm border border-slate-200">
-                              Sem fotos registradas
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-2 gap-3">
-                              {fotosAntes.map((f) => (
-                                <img
-                                  key={f.id}
-                                  src={f.url}
-                                  alt="Antes"
-                                  crossOrigin="anonymous"
-                                  className="rounded-lg object-cover border border-slate-200 shadow-sm"
-                                  style={{ aspectRatio: "1" }}
+                        {(["antes", "depois"] as const).map((tipo) => {
+                          const fotos =
+                            tipo === "antes" ? fotosAntes : fotosDepois;
+                          return (
+                            <div key={tipo}>
+                              <div className="flex items-center gap-2 mb-4">
+                                <span
+                                  className={cn(
+                                    "inline-block h-3 w-3 rounded-full",
+                                    tipo === "antes"
+                                      ? "bg-amber-400"
+                                      : "bg-green-500",
+                                  )}
                                 />
-                              ))}
+                                <p className="font-bold text-sm text-slate-900">
+                                  {tipo === "antes" ? "ANTES" : "DEPOIS"}
+                                </p>
+                              </div>
+                              {fotos.length === 0 ? (
+                                <div className="bg-slate-100 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm border border-slate-200">
+                                  Sem fotos registradas
+                                </div>
+                              ) : (
+                                <div className="grid gap-3">
+                                  {fotos.map((f) => (
+                                    <img
+                                      key={f.id}
+                                      src={f.url}
+                                      alt={
+                                        tipo === "antes" ? "Antes" : "Depois"
+                                      }
+                                      crossOrigin="anonymous"
+                                      className="rounded-lg object-cover border border-slate-200 shadow-sm w-full"
+                                      style={{ height: "520px" }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-2 mb-4">
-                            <span className="inline-block h-3 w-3 rounded-full bg-green-500" />
-                            <p className="font-bold text-sm text-slate-900">
-                              DEPOIS
-                            </p>
-                          </div>
-                          {fotosDepois.length === 0 ? (
-                            <div className="bg-slate-100 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm border border-slate-200">
-                              Sem fotos registradas
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-2 gap-3">
-                              {fotosDepois.map((f) => (
-                                <img
-                                  key={f.id}
-                                  src={f.url}
-                                  alt="Depois"
-                                  crossOrigin="anonymous"
-                                  className="rounded-lg object-cover border border-slate-200 shadow-sm"
-                                  style={{ aspectRatio: "1" }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -416,7 +758,7 @@ function RelatorioPage() {
             )}
 
             {/* Rodapé */}
-            <div className="bg-slate-900 text-slate-300 p-6 text-xs bottom-0 left-0 right-0">
+            <div className="bg-slate-900 text-slate-300 p-6 text-xs">
               <p className="text-center">
                 Este documento contém informações confidenciais e é destinado
                 exclusivamente ao seu destinatário.
@@ -424,6 +766,126 @@ function RelatorioPage() {
             </div>
           </div>
         </div>
+
+        {/* Páginas A4 ocultas — usadas exclusivamente para geração do PDF */}
+        {isFinalizada && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "-99999px",
+              top: 0,
+              pointerEvents: "none",
+            }}
+          >
+            <div ref={pdfContainerRef}>
+              {/* Página 1: cabeçalho + 1 serviço (ou extras se não houver serviços) */}
+              <div
+                className="pdf-a4-page"
+                style={{
+                  width: 794,
+                  height: 1122,
+                  background: "white",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
+              >
+                {renderPDFPageHeader()}
+                <div
+                  style={{
+                    flex: 1,
+                    padding: "16px 32px 0",
+                    overflow: "hidden",
+                  }}
+                >
+                  {servicePages.length > 0 ? (
+                    <>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          borderBottom: "2px solid #e2e8f0",
+                          paddingBottom: 10,
+                          marginBottom: 16,
+                          color: "#0f172a",
+                        }}
+                      >
+                        Serviços Executados
+                      </div>
+                      {renderPDFService(servicePages[0][0], 0)}
+                    </>
+                  ) : hasExtras ? (
+                    renderPDFExtras()
+                  ) : null}
+                </div>
+                {renderPDFFooter()}
+              </div>
+
+              {/* Páginas 2+: 1 serviço por página */}
+              {servicePages.slice(1).map((pageServices, pi) => {
+                const startIdx = pi + 1;
+                return (
+                  <div
+                    key={pi}
+                    className="pdf-a4-page"
+                    style={{
+                      width: 794,
+                      height: 1122,
+                      background: "white",
+                      display: "flex",
+                      flexDirection: "column",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        flex: 1,
+                        padding: "24px 32px 0",
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 20,
+                      }}
+                    >
+                      {pageServices.map((sv, i) =>
+                        renderPDFService(sv, startIdx + i),
+                      )}
+                    </div>
+                    {renderPDFFooter()}
+                  </div>
+                );
+              })}
+
+              {/* Página de extras: retirada de fios + CTOPs */}
+              {servicePages.length > 0 && hasExtras && (
+                <div
+                  className="pdf-a4-page"
+                  style={{
+                    width: 794,
+                    height: 1122,
+                    background: "white",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "24px 32px 0",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {renderPDFExtras()}
+                  </div>
+                  {renderPDFFooter()}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

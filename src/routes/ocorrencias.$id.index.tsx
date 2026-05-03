@@ -158,7 +158,13 @@ function OcorrenciaDetailPage() {
     </AppLayout>
   );
 
-  const ocServicos = servicos.filter(s => s.ocorrencia_id === oc.id).sort((a, b) => a.ordem - b.ordem);
+  const ocServicos = servicos
+    .filter(s => s.ocorrencia_id === oc.id)
+    .sort((a, b) => {
+      if (a.tipo_servico_id < b.tipo_servico_id) return -1;
+      if (a.tipo_servico_id > b.tipo_servico_id) return 1;
+      return a.ordem - b.ordem;
+    });
   const ocMateriais = ocorrenciaMateriais.filter(om => om.ocorrencia_id === oc.id);
   const activeMaterials = materials.filter(m => m.ativo);
   const matSearchLower = matSearch.toLowerCase();
@@ -598,11 +604,11 @@ function OcorrenciaDetailPage() {
                                       </div>
                                     </div>
                                   )}
-                                  {canEditOcorrencia && !isFinalizada && (
+                                  {canEditOcorrencia && !isFinalizada && fotos.length < 1 && (
                                     <button
                                       onClick={() => handleFotoUpload(sv.id, tipo)}
                                       disabled={uploading}
-                                      aria-label={`Adicionar mais fotos ${tipo === 'antes' ? 'antes' : 'depois'}`}
+                                      aria-label={`Adicionar foto ${tipo === 'antes' ? 'antes' : 'depois'}`}
                                       className="h-20 w-20 rounded-xl border border-dashed border-border flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                       style={{ background: 'oklch(0.972 0.004 245 / 0.5)' }}
                                     >
