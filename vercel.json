@@ -61,18 +61,9 @@
       ]
     }
   ],
-  "env": [
-    {
-      "key": "VITE_SUPABASE_URL",
-      "description": "URL do projeto Supabase (Settings > API > Project URL)"
-    },
-    {
-      "key": "VITE_SUPABASE_ANON_KEY",
-      "description": "Chave anon pública do Supabase (Settings > API > anon public)"
-    },
-    {
-      "key": "VITE_SENTRY_DSN",
-      "description": "DSN do projeto Sentry (sentry.io > Project > Settings > Client Keys)"
-    }
-  ]
+  "env": {
+    "VITE_SUPABASE_URL": "@supabase-url",
+    "VITE_SUPABASE_ANON_KEY": "@supabase-anon-key",
+    "VITE_SENTRY_DSN": "@sentry-dsn"
+  }
 }
