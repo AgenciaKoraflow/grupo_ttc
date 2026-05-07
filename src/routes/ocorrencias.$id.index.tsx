@@ -196,6 +196,7 @@ function OcorrenciaDetailPage() {
     servicoId: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [allowMultiple, setAllowMultiple] = useState(false);
   const [fotoContext, setFotoContext] = useState<{
     servicoId: string;
     tipo: "antes" | "depois";
@@ -355,18 +356,51 @@ function OcorrenciaDetailPage() {
   const handleZoomFoto = (url: string) => setFotoZoom(url);
 
   const handleFotoUpload = (servicoId: string, tipo: "antes" | "depois") => {
+    setAllowMultiple(false);
     setFotoContext({ servicoId, tipo, isFinal: false });
     fileInputRef.current?.click();
   };
 
   const handleFotoFinalUploadClick = (categoria: "retirada_fios" | "ctop") => {
+    setAllowMultiple(true);
     setFotoContext({ servicoId: "", tipo: "antes", categoria, isFinal: true });
     fileInputRef.current?.click();
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !fotoContext) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !fotoContext) return;
+
+    // Multi-file upload path (only for final photos with multiple selections)
+    if (fotoContext.isFinal && files.length > 1) {
+      setUploading(true);
+      const ordemBase = ocFotosFinais.filter(
+        (f) => f.categoria === fotoContext.categoria,
+      ).length;
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const processedFile = await prepareImageFile(files[i]);
+          await addFotoFinal(processedFile, {
+            ocorrencia_id: oc.id,
+            categoria: fotoContext.categoria as "retirada_fios" | "ctop",
+            ordem: ordemBase + 1 + i,
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao fazer upload das fotos:", error);
+        toast.error("Falha no upload", {
+          description: "Verifique sua conexão e tente novamente.",
+        });
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setFotoContext(null);
+      }
+      return;
+    }
+
+    const file = files[0];
+    if (!file) return;
 
     const previewKey = fotoContext.isFinal
       ? `final-${fotoContext.categoria}`
@@ -1436,6 +1470,7 @@ function OcorrenciaDetailPage() {
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp,image/heif,image/heic,image/gif,image/bmp,image/tiff,image/*"
+          multiple={allowMultiple}
           onChange={handleFileSelected}
           style={{ display: "none" }}
         />

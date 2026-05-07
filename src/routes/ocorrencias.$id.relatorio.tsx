@@ -148,8 +148,10 @@ function RelatorioPage() {
         pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
       }
 
-      const dateStr = new Date().toISOString().split("T")[0];
-      pdf.save(`relatorio-operacoes-${dateStr}.pdf`);
+      const equipeNome = oc.equipe?.nome ?? "Equipe";
+      const caboNome = oc.cabo_primaria ?? "Desconhecido";
+      const safeName = `${equipeNome} - ${caboNome}`.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").replace(/\s+/g, " ").trim();
+      pdf.save(`${safeName}.pdf`);
     } finally {
       setDownloading(false);
     }

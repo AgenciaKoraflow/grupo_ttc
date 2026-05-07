@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import {
-  Search, Eye, FileText, SlidersHorizontal, Upload,
+  Search, FileText, SlidersHorizontal, Upload,
   CheckCircle, AlertCircle, MinusCircle, FileUp, X,
-  Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Loader2,
+  Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Loader2, Calendar,
+  ArrowUpDown, ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
@@ -119,6 +120,15 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
       rowStatus,
       message,
     };
+  });
+}
+
+// ─── Date helpers ────────────────────────────────────────────────────────────
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
 
@@ -524,6 +534,40 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+// ─── Sort ────────────────────────────────────────────────────────────────────
+
+type SortCol = 'status' | 'id_ocorrencia' | 'municipio' | 'finalized_at';
+
+const STATUS_ORDER: Record<string, number> = { PENDENTE: 0, EM_ANDAMENTO: 1, FINALIZADA: 2 };
+
+function SortHeader({ col, label, sortCol, sortDir, onSort, className }: {
+  col: SortCol;
+  label: string;
+  sortCol: SortCol | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (col: SortCol) => void;
+  className?: string;
+}) {
+  const active = sortCol === col;
+  return (
+    <button
+      className={cn(
+        'flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer select-none whitespace-nowrap',
+        className,
+      )}
+      onClick={() => onSort(col)}
+    >
+      {label}
+      {active
+        ? sortDir === 'asc'
+          ? <ChevronUp className="h-3 w-3 opacity-70" />
+          : <ChevronDown className="h-3 w-3 opacity-70" />
+        : <ArrowUpDown className="h-3 w-3 opacity-30 group-hover:opacity-60" />
+      }
+    </button>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 function OcorrenciasPage() {
@@ -540,6 +584,9 @@ function OcorrenciasPage() {
   const [operadorFilter, setOperadorFilter] = useState<string>("");
   const [municipioFilter, setMunicipioFilter] = useState<string>("");
   const [statusViewFilter, setStatusViewFilter] = useState<"all" | "backlog" | "finalizadas">("all");
+  const [periodoFilter, setPeriodoFilter] = useState<"all" | "hoje" | "7dias" | "mes" | "custom">("all");
+  const [dataInicialFilter, setDataInicialFilter] = useState("");
+  const [dataFinalFilter, setDataFinalFilter] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showDesignacao, setShowDesignacao] = useState(false);
   const [showExcluir, setShowExcluir] = useState(false);
@@ -547,6 +594,18 @@ function OcorrenciasPage() {
   const [equipeSelecionada, setEquipeSelecionada] = useState<string>("");
   const [operadorSelecionado, setOperadorSelecionado] = useState<string>("");
   const [editingEquipeId, setEditingEquipeId] = useState<string | null>(null);
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = useCallback((col: SortCol) => {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+    setPage(0);
+  }, [sortCol]);
 
   const ocorrenciaAtual = useMemo(
     () => ocorrencias.find(o => o.id === ocorrenciaSelecionada),
@@ -559,18 +618,45 @@ function OcorrenciasPage() {
     [ocorrencias],
   );
 
-  const hasFilters = !!(statusFilter || equipeFilter || municipioFilter || search || operadorFilter);
+  const hasFilters = !!(statusFilter || equipeFilter || municipioFilter || search || operadorFilter || periodoFilter !== "all");
 
   const filtered = useMemo(() => {
     let result = isAdminOrSupervisor
       ? ocorrencias
       : ocorrencias.filter(o => o.equipe_id === user?.equipe_id);
     if (statusFilter) result = result.filter(o => o.status === statusFilter);
+
     if (statusViewFilter === "backlog") result = result.filter(o => o.status === "PENDENTE" || o.status === "EM_ANDAMENTO");
     if (statusViewFilter === "finalizadas") result = result.filter(o => o.status === "FINALIZADA");
     if (equipeFilter) result = result.filter(o => o.equipe_id === equipeFilter);
     if (municipioFilter) result = result.filter(o => o.municipio === municipioFilter);
     if (operadorFilter) result = result.filter(o => o.assigned_to === operadorFilter);
+    if (periodoFilter !== "all") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+      if (periodoFilter === "hoje") {
+        startDate = today;
+        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
+      } else if (periodoFilter === "7dias") {
+        startDate = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
+        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
+      } else if (periodoFilter === "mes") {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+      } else if (periodoFilter === "custom") {
+        if (dataInicialFilter) startDate = new Date(dataInicialFilter + "T00:00:00");
+        if (dataFinalFilter) endDate = new Date(dataFinalFilter + "T23:59:59");
+      }
+      result = result.filter(o => {
+        if (!o.finalized_at) return false;
+        const d = new Date(o.finalized_at);
+        if (startDate && d < startDate) return false;
+        if (endDate && d > endDate) return false;
+        return true;
+      });
+    }
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(o =>
@@ -579,13 +665,30 @@ function OcorrenciasPage() {
         (o.contratada || '').toLowerCase().includes(s)
       );
     }
+    if (sortCol) {
+      result = [...result].sort((a, b) => {
+        let cmp = 0;
+        if (sortCol === 'status') {
+          cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+        } else if (sortCol === 'id_ocorrencia') {
+          cmp = a.id_ocorrencia.localeCompare(b.id_ocorrencia);
+        } else if (sortCol === 'municipio') {
+          cmp = a.municipio.localeCompare(b.municipio);
+        } else if (sortCol === 'finalized_at') {
+          const da = a.finalized_at ? new Date(a.finalized_at).getTime() : 0;
+          const db = b.finalized_at ? new Date(b.finalized_at).getTime() : 0;
+          cmp = da - db;
+        }
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
     return result;
-  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, search]);
+  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter, search, sortCol, sortDir]);
 
   const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
 
-  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter]);
 
   const paginatedFiltered = useMemo(
     () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
@@ -679,11 +782,58 @@ function OcorrenciasPage() {
                 variant="ghost"
                 size="sm"
                 className="h-9 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => { setSearch(''); setStatusFilter(''); setEquipeFilter(''); setMunicipioFilter(''); }}
+                onClick={() => { setSearch(''); setStatusFilter(''); setEquipeFilter(''); setMunicipioFilter(''); setPeriodoFilter('all'); setDataInicialFilter(''); setDataFinalFilter(''); }}
               >
                 Limpar filtros
               </Button>
             )}
+          </div>
+
+          {/* Filtros de data de finalização */}
+          <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-border/40">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Finalização</span>
+            </div>
+            <div className="flex flex-wrap gap-2 flex-1">
+              {([
+                { key: 'all', label: 'Todos' },
+                { key: 'hoje', label: 'Hoje' },
+                { key: '7dias', label: 'Últimos 7 dias' },
+                { key: 'mes', label: 'Mês atual' },
+                { key: 'custom', label: 'Personalizado' },
+              ] as const).map(({ key, label }) => (
+                <Button
+                  key={key}
+                  variant={periodoFilter === key ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 text-xs font-medium"
+                  onClick={() => {
+                    setPeriodoFilter(key);
+                    if (key !== 'custom') { setDataInicialFilter(''); setDataFinalFilter(''); }
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+              {periodoFilter === "custom" && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={dataInicialFilter}
+                    onChange={(e) => setDataInicialFilter(e.target.value)}
+                    className="h-8 w-[140px] text-xs bg-background border-border/70"
+                  />
+                  <span className="text-xs text-muted-foreground">até</span>
+                  <Input
+                    type="date"
+                    value={dataFinalFilter}
+                    onChange={(e) => setDataFinalFilter(e.target.value)}
+                    className="h-8 w-[140px] text-xs bg-background border-border/70"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Status View Filters */}
@@ -745,23 +895,24 @@ function OcorrenciasPage() {
             <>
               {/* Table header — desktop only */}
               <div
-                className="hidden md:grid gap-4 px-5 py-3 border-b border-border/60"
+                className="hidden md:grid gap-3 px-5 py-3 border-b border-border/60 items-center"
                 style={{
-                  gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.8fr 1fr 1fr 1.2fr 0.8fr 1fr',
+                  gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.7fr 1fr 1fr 1.2fr 0.8fr 1.1fr 1.3fr',
                   background: 'oklch(0.972 0.004 245 / 0.7)',
                 }}
                 role="row"
                 aria-label="Cabeçalho da tabela"
               >
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">ID Ocorrência</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Município</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cabo/Primária</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">AT</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:block">Nome AT</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:block">Contratada</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Equipe</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:block">Gerente Icomon</span>
+                <SortHeader col="id_ocorrencia" label="ID Ocorrência" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <SortHeader col="municipio" label="Município" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cabo/Primária</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">AT</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap hidden lg:block">Nome AT</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap hidden lg:block">Contratada</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Equipe</span>
+                <SortHeader col="status" label="Status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <SortHeader col="finalized_at" label="Finalização" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className="hidden xl:flex" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap hidden xl:block">Gerente Icomon</span>
               </div>
 
               {/* Rows — mobile cards + desktop grid */}
@@ -796,6 +947,11 @@ function OcorrenciasPage() {
                         Cabo: <span className="text-foreground">{oc.cabo_primaria || '—'}</span>
                         {oc.at && <span className="ml-3">AT: <span className="text-foreground">{oc.at}</span></span>}
                       </div>
+                      {oc.status === 'FINALIZADA' && oc.finalized_at && (
+                        <div className="text-xs text-muted-foreground">
+                          Finalizada em: <span className="text-foreground font-medium">{formatDate(oc.finalized_at)}</span>
+                        </div>
+                      )}
                       <div onClick={(e) => e.stopPropagation()}>
                         {editingEquipeId === oc.id ? (
                           <Select
@@ -831,9 +987,9 @@ function OcorrenciasPage() {
 
                     {/* Desktop row */}
                     <div
-                      className="hidden md:grid gap-4 px-5 py-3.5 items-center cursor-pointer transition-all duration-150 hover:bg-accent/40 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className="hidden md:grid gap-3 px-5 py-3.5 items-center cursor-pointer transition-all duration-150 hover:bg-accent/40 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                       style={{
-                        gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.8fr 1fr 1fr 1.2fr 0.8fr 1fr',
+                        gridTemplateColumns: '1.5fr 1.2fr 1.2fr 0.7fr 1fr 1fr 1.2fr 0.8fr 1.1fr 1.3fr',
                         background: idx % 2 !== 0 ? 'oklch(0.972 0.004 245 / 0.35)' : undefined,
                       }}
                       onClick={() => navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
@@ -842,15 +998,7 @@ function OcorrenciasPage() {
                       aria-label={`Ocorrência ${oc.id_ocorrencia}, ${oc.municipio}`}
                       onKeyDown={(e) => e.key === 'Enter' && navigate({ to: '/ocorrencias/$id', params: { id: oc.id } })}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: 'oklch(0.50 0.225 255 / 0.10)' }}
-                        >
-                          <FileText className="h-3.5 w-3.5" aria-hidden="true" style={{ color: 'oklch(0.50 0.225 255)' }} />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground truncate">{oc.id_ocorrencia}</span>
-                      </div>
+                      <span className="text-sm font-semibold text-foreground truncate">{oc.id_ocorrencia}</span>
                       <span className="text-sm text-foreground/80 truncate">{oc.municipio}</span>
                       <span className="text-sm text-muted-foreground truncate">{oc.cabo_primaria || '—'}</span>
                       <span className="text-sm text-muted-foreground truncate">{oc.at || '—'}</span>
@@ -887,7 +1035,8 @@ function OcorrenciasPage() {
                           </button>
                         )}
                       </div>
-                      <div className="flex items-center justify-center"><StatusBadge status={oc.status} /></div>
+                      <div><StatusBadge status={oc.status} /></div>
+                      <span className="text-sm text-muted-foreground truncate hidden xl:block">{formatDate(oc.finalized_at)}</span>
                       <span className="text-sm text-muted-foreground truncate hidden xl:block">{oc.gerente_icomon || '—'}</span>
                     </div>
                   </div>
