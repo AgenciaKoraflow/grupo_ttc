@@ -580,82 +580,19 @@ function OcorrenciaDetailPage() {
 
         {/* Serviços */}
         <div className="space-y-3 animate-fade-in-up delay-75">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-foreground">
-                Serviços Executados
-              </h2>
-              <span
-                className="text-xs font-bold px-1.5 py-0.5 rounded-md"
-                style={{
-                  background: "oklch(0.50 0.225 255 / 0.12)",
-                  color: "oklch(0.42 0.18 255)",
-                }}
-              >
-                {ocServicos.length}
-              </span>
-            </div>
-            {canEditOcorrencia && !isFinalizada && (
-              <Dialog
-                open={showServicoDialog}
-                onOpenChange={setShowServicoDialog}
-              >
-                <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="gap-1.5 h-9 font-semibold"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
-                      boxShadow: "0 4px 12px oklch(0.50 0.225 255 / 0.35)",
-                    }}
-                  >
-                    <Plus className="h-4 w-4" /> Adicionar Serviço
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md max-h-[70vh] flex flex-col">
-                  <DialogHeader>
-                    <DialogTitle>Novo Serviço</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2 overflow-y-auto flex-1">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Tipo de Serviço
-                      </Label>
-                      <Select value={novoTipoId} onValueChange={setNovoTipoId}>
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-40 w-full">
-                          {tiposServico
-                            .filter((t) => t.ativo)
-                            .map((t) => (
-                              <SelectItem key={t.id} value={t.id}>
-                                {t.nome}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline">Cancelar</Button>
-                    </DialogClose>
-                    <Button
-                      onClick={handleAddServico}
-                      disabled={!novoTipoId}
-                      style={{
-                        background:
-                          "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
-                      }}
-                    >
-                      Adicionar
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-foreground">
+              Serviços Executados
+            </h2>
+            <span
+              className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+              style={{
+                background: "oklch(0.50 0.225 255 / 0.12)",
+                color: "oklch(0.42 0.18 255)",
+              }}
+            >
+              {ocServicos.length}
+            </span>
           </div>
 
           {detailLoading ? (
@@ -932,6 +869,69 @@ function OcorrenciaDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+          {canEditOcorrencia && !isFinalizada && (
+            <div className="flex justify-end">
+            <Dialog
+              open={showServicoDialog}
+              onOpenChange={setShowServicoDialog}
+            >
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-9 font-semibold"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
+                    boxShadow: "0 4px 12px oklch(0.50 0.225 255 / 0.35)",
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Adicionar Serviço
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md max-h-[70vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Novo Serviço</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2 overflow-y-auto flex-1">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Tipo de Serviço
+                    </Label>
+                    <Select value={novoTipoId} onValueChange={setNovoTipoId}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-40 w-full">
+                        {tiposServico
+                          .filter((t) => t.ativo)
+                          .map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.nome}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={handleAddServico}
+                    disabled={!novoTipoId}
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
+                    }}
+                  >
+                    Adicionar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             </div>
           )}
         </div>
