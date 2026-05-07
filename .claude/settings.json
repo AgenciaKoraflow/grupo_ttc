@@ -17,7 +17,8 @@
       "Bash(~/.bun/bin/bun run *)",
       "Read(//home/joaosousa/.nvm/versions/node/**)",
       "Read(//usr/local/bin/**)",
-      "Bash(node_modules/.bin/tsc --noEmit --skipLibCheck)"
+      "Bash(node_modules/.bin/tsc --noEmit --skipLibCheck)",
+      "Bash(git diff *)"
     ],
     "deny": [],
     "additionalDirectories": [

@@ -53,17 +53,11 @@ import { TablePagination } from "@/components/TablePagination";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { toast } from "sonner";
+import { UNIT_OPTIONS } from "@/constants/materiais";
 
 export const Route = createFileRoute("/materiais")({
   component: MateriaisPage,
 });
-
-const UNIT_OPTIONS = [
-  { value: 'metro', label: 'Metro' },
-  { value: 'kg', label: 'Quilograma (kg)' },
-  { value: 'unidade', label: 'Unidade' },
-  { value: 'bobina', label: 'Bobina' },
-] as const;
 
 const C = {
   primary: "oklch(0.50 0.225 255)",
@@ -119,22 +113,6 @@ function MateriaisPage() {
     deleteMaterial,
   } = useData();
 
-  if (!isAdminOrSupervisor) {
-    return (
-      <AppLayout>
-        <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-3">
-          <Package className="h-12 w-12 text-muted-foreground/30" />
-          <p className="text-lg font-semibold text-muted-foreground">
-            Acesso restrito
-          </p>
-          <p className="text-sm text-muted-foreground/70">
-            Apenas administradores e supervisores podem gerenciar materiais.
-          </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
@@ -165,6 +143,22 @@ function MateriaisPage() {
     [filtered, page],
   );
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  if (!isAdminOrSupervisor) {
+    return (
+      <AppLayout>
+        <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <Package className="h-12 w-12 text-muted-foreground/30" />
+          <p className="text-lg font-semibold text-muted-foreground">
+            Acesso restrito
+          </p>
+          <p className="text-sm text-muted-foreground/70">
+            Apenas administradores e supervisores podem gerenciar materiais.
+          </p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const handleAdd = () => {
     if (!nome.trim() || !unit.trim()) return;
