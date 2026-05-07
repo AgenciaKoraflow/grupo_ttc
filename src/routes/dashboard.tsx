@@ -267,7 +267,7 @@ function DashboardPage() {
   usePageTitle("Dashboard");
   const { user, isAdmin } = useAuth();
   const { ocorrencias, equipes, profiles, materials, ocorrenciaMateriais } = useData();
-  const [period, setPeriod] = useState<Period>('mes');
+  const [period, setPeriod] = useState<Period>('ano');
   const [appliedRange, setAppliedRange] = useState<AppliedRange | null>(null);
   const [calRange, setCalRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
   const [pickerOpen, setPickerOpen] = useState(false);

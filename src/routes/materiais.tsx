@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -42,6 +49,13 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/materiais")({
   component: MateriaisPage,
 });
+
+const UNIT_OPTIONS = [
+  { value: 'metro', label: 'Metro' },
+  { value: 'kg', label: 'Quilograma (kg)' },
+  { value: 'unidade', label: 'Unidade' },
+  { value: 'bobina', label: 'Bobina' },
+] as const;
 
 const C = {
   primary: "oklch(0.50 0.225 255)",
@@ -222,12 +236,16 @@ function MateriaisPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Unidade de medida</Label>
-                  <Input
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    placeholder="Ex: metro, kg, unidade, bobina"
-                    onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                  />
+                  <Select value={unit} onValueChange={setUnit}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a unidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -392,12 +410,16 @@ function MateriaisPage() {
                                 </div>
                                 <div className="space-y-2">
                                   <Label>Unidade de medida</Label>
-                                  <Input
-                                    value={editUnit}
-                                    onChange={(e) =>
-                                      setEditUnit(e.target.value)
-                                    }
-                                  />
+                                  <Select value={editUnit} onValueChange={setEditUnit}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione a unidade" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {UNIT_OPTIONS.map(opt => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               </div>
                               <DialogFooter>

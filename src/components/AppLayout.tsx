@@ -10,7 +10,6 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -67,16 +66,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Sino de notificações decorativo */}
-              <button
-                className="relative h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Notificações"
-              >
-                <Bell className="h-4 w-4" aria-hidden="true" />
-              </button>
-
-              <div className="h-4 w-px bg-border" />
-
               {/* Avatar + nome */}
               <div className="flex items-center gap-2.5 pl-1">
                 <Avatar

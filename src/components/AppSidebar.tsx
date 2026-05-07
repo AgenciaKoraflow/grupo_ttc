@@ -89,19 +89,19 @@ export function AppSidebar() {
         }}
       >
         {/* Logo */}
-        <div className="flex flex-col items-center justify-center gap-2 px-4 py-3 shrink-0"
-          style={{ borderBottom: '1px solid oklch(0.24 0.030 250)' }}
-        >
-          <div className="flex justify-center">
-            <img src="/logo-ttc.png" alt="Logo TTC" className="h-8 w-auto rounded-lg max-w-[80%]" style={{ imageRendering: 'auto' }} />
-          </div>
-          {!collapsed && (
+        {!collapsed && (
+          <div className="flex flex-col items-center justify-center gap-2 px-4 py-3 shrink-0"
+            style={{ borderBottom: '1px solid oklch(0.24 0.030 250)' }}
+          >
+            <div className="flex justify-center">
+              <img src="/logo-ttc.png" alt="Logo TTC" className="h-8 w-auto rounded-lg max-w-[80%]" style={{ imageRendering: 'auto' }} />
+            </div>
             <div className="text-center">
               <p className="text-xs font-bold text-white tracking-tight leading-tight">GRUPO TTC</p>
               <p className="text-[9px] text-sidebar-foreground/50 tracking-widest uppercase">Preventivas</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Conteúdo — usando div direto para controle total do visual */}
         <div className="flex-1 overflow-y-auto py-3 px-2">
