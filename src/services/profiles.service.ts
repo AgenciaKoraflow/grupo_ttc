@@ -36,6 +36,7 @@ export type ProfileUpdate = {
   role?: UserRole;
   equipe_id?: string | null;
   must_change_password?: boolean;
+  ativo?: boolean;
 };
 
 export async function updateProfile(id: string, data: ProfileUpdate): Promise<void> {

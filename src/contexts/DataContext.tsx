@@ -654,6 +654,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (data.role !== undefined) update.role = data.role;
       if (data.equipe_id !== undefined) update.equipe_id = data.equipe_id;
       if (data.must_change_password !== undefined) update.must_change_password = data.must_change_password;
+      if (data.ativo !== undefined) update.ativo = data.ativo;
       await ProfilesService.updateProfile(id, update);
     };
     void run();

@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,16 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -112,6 +121,7 @@ function TiposServicoPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
+  const [pendingToggle, setPendingToggle] = useState<{ id: string; novoStatus: boolean } | null>(null);
 
   const stats = useMemo(() => {
     const ativos = tiposServico.filter((t) => t.ativo).length;
@@ -162,6 +172,13 @@ function TiposServicoPage() {
     if (!editId || !editNome.trim()) return;
     updateTipoServico(editId, { nome: editNome.trim() });
     setEditId(null);
+  };
+
+  const handleToggle = () => {
+    if (!pendingToggle) return;
+    updateTipoServico(pendingToggle.id, { ativo: pendingToggle.novoStatus });
+    toast.success(pendingToggle.novoStatus ? "Tipo de serviço ativado" : "Tipo de serviço desativado");
+    setPendingToggle(null);
   };
 
   return (
@@ -284,20 +301,19 @@ function TiposServicoPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={ts.ativo ? "secondary" : "outline"}
-                            className={cn(
-                              "text-xs cursor-pointer transition-colors",
-                              ts.ativo
-                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                : "text-muted-foreground",
-                            )}
-                            onClick={() =>
-                              updateTipoServico(ts.id, { ativo: !ts.ativo })
-                            }
-                          >
-                            {ts.ativo ? "Ativo" : "Inativo"}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={ts.ativo}
+                              disabled={pendingToggle?.id === ts.id}
+                              onCheckedChange={(checked) =>
+                                setPendingToggle({ id: ts.id, novoStatus: checked })
+                              }
+                              className="data-[state=checked]:bg-green-600"
+                            />
+                            <span className={cn("text-xs", ts.ativo ? "text-green-700 font-medium" : "text-muted-foreground")}>
+                              {ts.ativo ? "Ativo" : "Inativo"}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="text-sm font-medium">
@@ -399,6 +415,27 @@ function TiposServicoPage() {
           />
         </div>
       </div>
+
+      {/* Toggle Ativo/Inativo — confirmação */}
+      <AlertDialog
+        open={!!pendingToggle}
+        onOpenChange={(o) => { if (!o) setPendingToggle(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {pendingToggle?.novoStatus ? "Ativar tipo de serviço" : "Desativar tipo de serviço"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {pendingToggle?.novoStatus
+              ? "Deseja realmente ativar este registro?"
+              : "Deseja realmente desativar este registro?"}
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-2 mt-4">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleToggle}>Confirmar</AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

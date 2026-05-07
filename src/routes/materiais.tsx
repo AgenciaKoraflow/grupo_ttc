@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,15 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -136,6 +144,7 @@ function MateriaisPage() {
   const [editUnit, setEditUnit] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [pendingToggle, setPendingToggle] = useState<{ id: string; novoStatus: boolean } | null>(null);
 
   const stats = useMemo(() => {
     const ativos = materials.filter((m) => m.ativo).length;
@@ -171,6 +180,13 @@ function MateriaisPage() {
     updateMaterial(editId, { name: editNome.trim(), unit: editUnit.trim() });
     setEditId(null);
     toast.success("Material atualizado");
+  };
+
+  const handleToggle = () => {
+    if (!pendingToggle) return;
+    updateMaterial(pendingToggle.id, { ativo: pendingToggle.novoStatus });
+    toast.success(pendingToggle.novoStatus ? "Material ativado" : "Material desativado");
+    setPendingToggle(null);
   };
 
   const handleDelete = () => {
@@ -353,20 +369,19 @@ function MateriaisPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={m.ativo ? "secondary" : "outline"}
-                          className={cn(
-                            "text-xs cursor-pointer transition-colors",
-                            m.ativo
-                              ? "bg-green-100 text-green-700 hover:bg-green-200"
-                              : "text-muted-foreground",
-                          )}
-                          onClick={() =>
-                            updateMaterial(m.id, { ativo: !m.ativo })
-                          }
-                        >
-                          {m.ativo ? "Ativo" : "Inativo"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={m.ativo}
+                            disabled={pendingToggle?.id === m.id}
+                            onCheckedChange={(checked) =>
+                              setPendingToggle({ id: m.id, novoStatus: checked })
+                            }
+                            className="data-[state=checked]:bg-green-600"
+                          />
+                          <span className={cn("text-xs", m.ativo ? "text-green-700 font-medium" : "text-muted-foreground")}>
+                            {m.ativo ? "Ativo" : "Inativo"}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(m.created_at).toLocaleDateString("pt-BR")}
@@ -498,6 +513,27 @@ function MateriaisPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Toggle Ativo/Inativo — confirmação */}
+      <AlertDialog
+        open={!!pendingToggle}
+        onOpenChange={(o) => { if (!o) setPendingToggle(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {pendingToggle?.novoStatus ? "Ativar material" : "Desativar material"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {pendingToggle?.novoStatus
+              ? "Deseja realmente ativar este registro?"
+              : "Deseja realmente desativar este registro?"}
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-2 mt-4">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleToggle}>Confirmar</AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

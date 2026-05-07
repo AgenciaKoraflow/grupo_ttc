@@ -6,7 +6,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -15,6 +14,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Users, Trash2, Building2, Activity, Clock, CheckCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -72,6 +73,7 @@ function EquipesPage() {
   const [selectedOperadores, setSelectedOperadores] = useState<Set<string>>(new Set());
   const [openDelete, setOpenDelete] = useState(false);
   const [equipeParaDeletar, setEquipeParaDeletar] = useState<string | null>(null);
+  const [pendingToggle, setPendingToggle] = useState<{ id: string; novoStatus: boolean } | null>(null);
 
   const stats = useMemo(() => {
     const ativas = equipes.filter(e => e.ativa).length;
@@ -116,6 +118,13 @@ function EquipesPage() {
 
     setEditId(null);
     setSelectedOperadores(new Set());
+  };
+
+  const handleToggle = () => {
+    if (!pendingToggle) return;
+    updateEquipe(pendingToggle.id, { ativa: pendingToggle.novoStatus });
+    toast.success(pendingToggle.novoStatus ? "Equipe ativada" : "Equipe desativada");
+    setPendingToggle(null);
   };
 
   const handleDelete = () => {
@@ -201,13 +210,19 @@ function EquipesPage() {
                   <TableRow key={eq.id}>
                     <TableCell className="font-medium pl-4 max-w-[220px]"><span className="truncate block" title={eq.nome}>{eq.nome}</span></TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={eq.ativa ? 'secondary' : 'outline'} 
-                        className={cn('text-xs cursor-pointer transition-colors', eq.ativa ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'text-muted-foreground')}
-                        onClick={() => updateEquipe(eq.id, { ativa: !eq.ativa })}
-                      >
-                        {eq.ativa ? 'Ativa' : 'Inativa'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={eq.ativa}
+                          disabled={pendingToggle?.id === eq.id}
+                          onCheckedChange={(checked) =>
+                            setPendingToggle({ id: eq.id, novoStatus: checked })
+                          }
+                          className="data-[state=checked]:bg-green-600"
+                        />
+                        <span className={cn("text-xs", eq.ativa ? "text-green-700 font-medium" : "text-muted-foreground")}>
+                          {eq.ativa ? "Ativa" : "Inativa"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <span className="inline-flex items-center gap-1 text-sm">
@@ -293,6 +308,27 @@ function EquipesPage() {
             className="border-t border-border/60"
           />
         </div>
+
+        {/* Toggle Ativo/Inativo — confirmação */}
+        <AlertDialog
+          open={!!pendingToggle}
+          onOpenChange={(o) => { if (!o) setPendingToggle(null); }}
+        >
+          <AlertDialogContent>
+            <AlertDialogTitle>
+              {pendingToggle?.novoStatus ? "Ativar equipe" : "Desativar equipe"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingToggle?.novoStatus
+                ? "Deseja realmente ativar este registro?"
+                : "Deseja realmente desativar este registro?"}
+            </AlertDialogDescription>
+            <div className="flex justify-end gap-2 mt-4">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleToggle}>Confirmar</AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Modal Deletar Equipe */}
         <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>

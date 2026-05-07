@@ -18,6 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Users, UserCog, Shield, Building2, Plus, Pencil, Key, Trash2, Copy, Check, AlertCircle,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -68,6 +70,7 @@ function UsuariosPage() {
   const [copied, setCopied] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState('');
+  const [pendingToggle, setPendingToggle] = useState<{ id: string; novoStatus: boolean } | null>(null);
 
   const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
@@ -154,6 +157,13 @@ function UsuariosPage() {
   const openResetPasswordModal = (userId: string) => {
     setSelectedUserId(userId);
     setOpenResetPassword(true);
+  };
+
+  const handleToggleAtivo = () => {
+    if (!pendingToggle) return;
+    updateProfile(pendingToggle.id, { ativo: pendingToggle.novoStatus });
+    toast.success(pendingToggle.novoStatus ? "Usuário ativado" : "Usuário desativado");
+    setPendingToggle(null);
   };
 
   const handleDeleteUser = () => {
@@ -284,11 +294,26 @@ function UsuariosPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {p.must_change_password && (
-                        <Badge variant="outline" className="text-xs" style={{ borderColor: C.warning, color: C.warning }}>
-                          Primeiro acesso
-                        </Badge>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={p.ativo ?? true}
+                            disabled={pendingToggle?.id === p.id}
+                            onCheckedChange={(checked) =>
+                              setPendingToggle({ id: p.id, novoStatus: checked })
+                            }
+                            className="data-[state=checked]:bg-green-600"
+                          />
+                          <span className={cn("text-xs", (p.ativo ?? true) ? "text-green-700 font-medium" : "text-muted-foreground")}>
+                            {(p.ativo ?? true) ? "Ativo" : "Inativo"}
+                          </span>
+                        </div>
+                        {p.must_change_password && (
+                          <Badge variant="outline" className="text-xs" style={{ borderColor: C.warning, color: C.warning }}>
+                            Primeiro acesso
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -566,6 +591,27 @@ function UsuariosPage() {
                 </span>
               ) : 'Resetar'}
             </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Toggle Ativo/Inativo — confirmação */}
+      <AlertDialog
+        open={!!pendingToggle}
+        onOpenChange={(o) => { if (!o) setPendingToggle(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            {pendingToggle?.novoStatus ? "Ativar usuário" : "Desativar usuário"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {pendingToggle?.novoStatus
+              ? "Deseja realmente ativar este registro?"
+              : "Deseja realmente desativar este registro?"}
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-2 mt-4">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleToggleAtivo}>Confirmar</AlertDialogAction>
           </div>
         </AlertDialogContent>
       </AlertDialog>
