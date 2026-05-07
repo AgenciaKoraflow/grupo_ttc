@@ -30,6 +30,9 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+  --color-warning-text: var(--warning-text);
+  --color-success-text: var(--success-text);
+  --color-info-text: var(--info-text);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -78,15 +81,15 @@
   --muted: oklch(0.935 0.014 245);
   --muted-foreground: oklch(0.46 0.028 252);
 
-  /* Accent */
-  --accent: oklch(0.940 0.020 245);
-  --accent-foreground: oklch(0.22 0.032 252);
+  /* Accent — mais cromático para hover states mais perceptíveis */
+  --accent: oklch(0.918 0.028 248);
+  --accent-foreground: oklch(0.20 0.038 252);
 
   /* Semantic */
   --destructive: oklch(0.50 0.235 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.868 0.014 245);
-  --input: oklch(0.878 0.014 245);
+  --border: oklch(0.880 0.012 245);
+  --input: oklch(0.840 0.022 248);
   --ring: oklch(0.50 0.225 255);
 
   /* Status colors */
@@ -96,6 +99,11 @@
   --success-foreground: oklch(0.99 0 0);
   --info: oklch(0.55 0.18 235);
   --info-foreground: oklch(0.99 0 0);
+
+  /* Semantic text colors para badges/chips (fundo claro com tinte de cor) */
+  --warning-text: oklch(0.40 0.12 70);
+  --success-text: oklch(0.36 0.14 150);
+  --info-text: oklch(0.38 0.14 235);
 
   /* Charts */
   --chart-1: oklch(0.50 0.225 255);

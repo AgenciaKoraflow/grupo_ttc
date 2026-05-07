@@ -153,16 +153,16 @@ export function AppSidebar() {
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 relative group",
                     active
                       ? "text-white"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                      : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/80",
                     collapsed && "justify-center px-2",
                   )}
                   style={
                     active
                       ? {
                           background:
-                            "linear-gradient(135deg, oklch(0.50 0.225 255 / 0.25), oklch(0.44 0.245 272 / 0.15))",
+                            "linear-gradient(135deg, oklch(0.50 0.225 255 / 0.32), oklch(0.44 0.245 272 / 0.20))",
                           boxShadow:
-                            "inset 0 0 0 1px oklch(0.58 0.225 255 / 0.25)",
+                            "inset 0 0 0 1px oklch(0.58 0.225 255 / 0.35)",
                         }
                       : undefined
                   }
@@ -170,10 +170,11 @@ export function AppSidebar() {
                   {/* Barra lateral ativa */}
                   {active && (
                     <span
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full"
                       style={{
                         background:
-                          "linear-gradient(180deg, oklch(0.72 0.18 255), oklch(0.55 0.22 272))",
+                          "linear-gradient(180deg, oklch(0.78 0.18 255), oklch(0.58 0.22 272))",
+                        boxShadow: "0 0 6px oklch(0.65 0.20 260 / 0.6)",
                       }}
                     />
                   )}
