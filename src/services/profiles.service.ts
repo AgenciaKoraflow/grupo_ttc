@@ -24,9 +24,16 @@ export async function createProfile(
     body: { action: 'create', ...data },
   });
   if (error) {
-    console.error('[profiles.service] create:', error);
-    throw error;
+    // FunctionsHttpError: extract the actual message from the response body.
+    let message = error.message;
+    try {
+      const body = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
+      if (body?.error) message = body.error;
+    } catch { /* response may not be JSON */ }
+    console.error('[profiles.service] create:', message);
+    throw new Error(message);
   }
+  if (result?.error) throw new Error(result.error as string);
   return { profile: result.profile as Profile, tempPassword: result.tempPassword as string };
 }
 

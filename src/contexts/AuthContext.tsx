@@ -74,6 +74,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Re-sync profile when an admin changes this user's role from another session.
+  // Supabase realtime fires on UPDATE to profiles WHERE id = current user.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`profile-sync:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        async () => {
+          const updated = await fetchProfile(user.id);
+          if (updated) setUser(updated);
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const {
       data: { subscription },

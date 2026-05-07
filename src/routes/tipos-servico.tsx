@@ -36,6 +36,7 @@ import {
 import {
   Plus,
   Pencil,
+  Trash2,
   Wrench,
   Activity,
   CheckCircle,
@@ -99,6 +100,7 @@ function TiposServicoPage() {
     ocorrencias,
     addTipoServico,
     updateTipoServico,
+    deleteTipoServico,
   } = useData();
 
   if (!isAdminOrSupervisor) {
@@ -122,6 +124,7 @@ function TiposServicoPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
   const [pendingToggle, setPendingToggle] = useState<{ id: string; novoStatus: boolean } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; nome: string; hasServicos: boolean } | null>(null);
 
   const stats = useMemo(() => {
     const ativos = tiposServico.filter((t) => t.ativo).length;
@@ -179,6 +182,13 @@ function TiposServicoPage() {
     updateTipoServico(pendingToggle.id, { ativo: pendingToggle.novoStatus });
     toast.success(pendingToggle.novoStatus ? "Tipo de serviço ativado" : "Tipo de serviço desativado");
     setPendingToggle(null);
+  };
+
+  const handleDelete = () => {
+    if (!pendingDelete || pendingDelete.hasServicos) return;
+    deleteTipoServico(pendingDelete.id);
+    toast.success("Tipo de serviço excluído");
+    setPendingDelete(null);
   };
 
   return (
@@ -277,7 +287,7 @@ function TiposServicoPage() {
                   <TableHead className="text-center">Pendentes</TableHead>
                   <TableHead className="text-center">Em Andamento</TableHead>
                   <TableHead className="text-center">Finalizadas</TableHead>
-                  <TableHead className="w-[80px] pr-4">Ações</TableHead>
+                  <TableHead className="w-[100px] pr-4">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -357,6 +367,7 @@ function TiposServicoPage() {
                           </span>
                         </TableCell>
                         <TableCell>
+                          <div className="flex items-center gap-1">
                           <Dialog
                             open={editId === ts.id}
                             onOpenChange={(o) => {
@@ -397,6 +408,21 @@ function TiposServicoPage() {
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:text-red-700"
+                              onClick={() => setPendingDelete({
+                                id: ts.id,
+                                nome: ts.nome,
+                                hasServicos: servicos.some(s => s.tipo_servico_id === ts.id),
+                              })}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -434,6 +460,47 @@ function TiposServicoPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleToggle}>Confirmar</AlertDialogAction>
           </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Excluir tipo de serviço — confirmação ou bloqueio */}
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-red-500" />
+            Excluir tipo de serviço
+          </AlertDialogTitle>
+          {pendingDelete?.hasServicos ? (
+            <>
+              <AlertDialogDescription>
+                Não é possível excluir <strong>{pendingDelete?.nome}</strong> pois existem serviços vinculados a este tipo.
+                <br /><br />
+                Para ocultar este tipo, desative-o usando o botão de status na linha correspondente.
+              </AlertDialogDescription>
+              <div className="flex justify-end mt-4">
+                <AlertDialogCancel>Fechar</AlertDialogCancel>
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir <strong>{pendingDelete?.nome}</strong>?
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+              <div className="flex justify-end gap-2 mt-4">
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={handleDelete}
+                >
+                  Excluir
+                </AlertDialogAction>
+              </div>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </AppLayout>

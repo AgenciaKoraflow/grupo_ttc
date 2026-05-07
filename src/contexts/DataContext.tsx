@@ -44,6 +44,7 @@ interface DataStore {
   deleteEquipe: (id: string) => void;
   addTipoServico: (nome: string) => TipoServico;
   updateTipoServico: (id: string, data: Partial<TipoServico>) => void;
+  deleteTipoServico: (id: string) => void;
   addServico: (data: Partial<ServicoOcorrencia>) => ServicoOcorrencia;
   updateServico: (id: string, data: Partial<ServicoOcorrencia>) => void;
   deleteServico: (id: string) => void;
@@ -494,6 +495,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void TiposServicoService.updateTipoServico(id, update);
   }, []);
 
+  const deleteTipoServico = useCallback((id: string) => {
+    const ts = tiposServico.find(t => t.id === id);
+    setTiposServico(prev => prev.filter(t => t.id !== id));
+    if (ts) logAction('EXCLUSAO', 'TIPO_SERVICO', id, ts.nome, 'Tipo de serviço excluído');
+    void TiposServicoService.deleteTipoServico(id);
+  }, [tiposServico, logAction]);
+
   // ─── Serviços ──────────────────────────────────────────────────────────────
 
   const addServico = useCallback((data: Partial<ServicoOcorrencia>): ServicoOcorrencia => {
@@ -730,7 +738,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
     materials, ocorrenciaMateriais,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
-    addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
+    addTipoServico, updateTipoServico, deleteTipoServico, addServico, updateServico, deleteServico,
     addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
     finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile,
     vincularEquipe, designarOperador, deleteOcorrencia,
@@ -741,7 +749,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
     materials, ocorrenciaMateriais,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
-    addTipoServico, updateTipoServico, addServico, updateServico, deleteServico,
+    addTipoServico, updateTipoServico, deleteTipoServico, addServico, updateServico, deleteServico,
     addFotoServico, deleteFotoServico, addFotoFinal, deleteFotoFinal,
     finalizarOcorrencia, reabrirOcorrencia, addProfile, updateProfile, deleteProfile,
     vincularEquipe, designarOperador, deleteOcorrencia,

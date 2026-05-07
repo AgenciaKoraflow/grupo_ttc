@@ -28,3 +28,8 @@ export async function updateTipoServico(id: string, data: TipoServicoUpdate): Pr
   const { error } = await supabase.from('tipos_servico').update(data).eq('id', id);
   if (error) console.error('[tiposServico.service] update:', error);
 }
+
+export async function deleteTipoServico(id: string): Promise<void> {
+  const { error } = await supabase.from('tipos_servico').delete().eq('id', id);
+  if (error) console.error('[tiposServico.service] delete:', error);
+}
