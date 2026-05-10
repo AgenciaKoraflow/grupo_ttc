@@ -14,7 +14,7 @@ import {
   Search, FileText, SlidersHorizontal, Upload,
   CheckCircle, AlertCircle, MinusCircle, FileUp, X,
   Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Calendar,
-  ArrowUpDown, ChevronUp, XCircle,
+  ArrowUpDown, ChevronUp, XCircle, Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
@@ -578,6 +578,38 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+// ─── CSV Export ──────────────────────────────────────────────────────────────
+
+function exportCSV(rows: { id_ocorrencia: string; municipio: string; cabo_primaria: string | null; at: string | null; nome_at: string | null; contratada: string | null; finalized_at: string | null; equipe?: { nome: string } | undefined; status: OcorrenciaStatus; gerente_icomon: string | null }[]) {
+  const STATUS_LABEL: Record<OcorrenciaStatus, string> = {
+    PENDENTE: 'Pendente',
+    EM_ANDAMENTO: 'Em Andamento',
+    FINALIZADA: 'Finalizada',
+  };
+  const headers = ['ID Ocorrência', 'Município', 'Cabo/Primária', 'AT', 'Nome AT', 'Contratada', 'Data Finalização', 'Equipe', 'Status', 'Gerente'];
+  const escape = (v: string | null | undefined) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const dataRows = rows.map(o => [
+    o.id_ocorrencia,
+    o.municipio,
+    o.cabo_primaria,
+    o.at,
+    o.nome_at,
+    o.contratada,
+    o.finalized_at ? formatDate(o.finalized_at) : '',
+    o.equipe?.nome,
+    STATUS_LABEL[o.status],
+    o.gerente_icomon,
+  ].map(escape).join(';'));
+  const csv = '﻿' + [headers.map(escape).join(';'), ...dataRows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ocorrencias_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── Sort ────────────────────────────────────────────────────────────────────
 
 type SortCol = 'status' | 'id_ocorrencia' | 'municipio' | 'finalized_at';
@@ -743,19 +775,30 @@ function OcorrenciasPage() {
               {filtered.length} {filtered.length === 1 ? 'registro' : 'registros'}{hasFilters ? ' filtrados' : ''}
             </p>
           </div>
-          {canCreate && (
+          <div className="flex items-center gap-2">
             <Button
+              variant="outline"
               size="sm"
               className="gap-2 h-9 font-semibold text-sm"
-              style={{
-                background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
-                boxShadow: '0 4px 12px oklch(0.50 0.225 255 / 0.35)',
-              }}
-              onClick={() => setShowImport(true)}
+              onClick={() => exportCSV(filtered)}
+              disabled={filtered.length === 0}
             >
-              <Upload className="h-4 w-4" /> Importar Planilha
+              <Download className="h-4 w-4" /> Exportar CSV
             </Button>
-          )}
+            {canCreate && (
+              <Button
+                size="sm"
+                className="gap-2 h-9 font-semibold text-sm"
+                style={{
+                  background: 'linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))',
+                  boxShadow: '0 4px 12px oklch(0.50 0.225 255 / 0.35)',
+                }}
+                onClick={() => setShowImport(true)}
+              >
+                <Upload className="h-4 w-4" /> Importar Planilha
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Filtros */}
