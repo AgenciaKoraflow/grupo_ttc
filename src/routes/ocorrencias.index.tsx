@@ -668,6 +668,7 @@ function OcorrenciasPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [equipeFilter, setEquipeFilter] = useState<string>("");
+  const [atFilter, setAtFilter] = useState<string>("");
   const [operadorFilter, setOperadorFilter] = useState<string>("");
   const [statusViewFilter, setStatusViewFilter] = useState<"all" | "backlog" | "finalizadas">("all");
   const [periodoFilter, setPeriodoFilter] = useState<"all" | "hoje" | "7dias" | "mes" | "custom">("all");
@@ -699,7 +700,13 @@ function OcorrenciasPage() {
   );
   const operadorAtual = ocorrenciaAtual?.assignedUser;
 
-  const hasFilters = !!(statusFilter || equipeFilter || search || operadorFilter || periodoFilter !== "all");
+  const hasFilters = !!(statusFilter || equipeFilter || atFilter || search || operadorFilter || periodoFilter !== "all");
+
+  const uniqueAts = useMemo(() => {
+    const ats = new Set<string>();
+    ocorrencias.forEach(o => { if (o.at) ats.add(o.at); });
+    return Array.from(ats).sort((a, b) => a.localeCompare(b));
+  }, [ocorrencias]);
 
   const filtered = useMemo(() => {
     let result = isAdminOrSupervisor
@@ -710,6 +717,7 @@ function OcorrenciasPage() {
     if (statusViewFilter === "backlog") result = result.filter(o => o.status === "PENDENTE" || o.status === "EM_ANDAMENTO");
     if (statusViewFilter === "finalizadas") result = result.filter(o => o.status === "FINALIZADA");
     if (equipeFilter) result = result.filter(o => o.equipe_id === equipeFilter);
+    if (atFilter) result = result.filter(o => o.at === atFilter);
     if (operadorFilter) result = result.filter(o => o.assigned_to === operadorFilter);
     if (periodoFilter !== "all") {
       const today = new Date();
@@ -763,12 +771,12 @@ function OcorrenciasPage() {
       });
     }
     return result;
-  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter, search, sortCol, sortDir]);
+  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, atFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter, search, sortCol, sortDir]);
 
   const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
 
-  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, atFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter]);
 
   const paginatedFiltered = useMemo(
     () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
@@ -858,12 +866,23 @@ function OcorrenciasPage() {
                 </SelectContent>
               </Select>
             )}
+            <Select value={atFilter} onValueChange={(v) => setAtFilter(v === 'all' ? '' : v)}>
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] h-9 bg-background border-border/70">
+                <SelectValue placeholder="AT" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os ATs</SelectItem>
+                {uniqueAts.map(at => (
+                  <SelectItem key={at} value={at}>{at}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {hasFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-9 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => { setSearch(''); setStatusFilter(''); setEquipeFilter(''); setPeriodoFilter('all'); setDataInicialFilter(''); setDataFinalFilter(''); }}
+                onClick={() => { setSearch(''); setStatusFilter(''); setEquipeFilter(''); setAtFilter(''); setPeriodoFilter('all'); setDataInicialFilter(''); setDataFinalFilter(''); }}
               >
                 Limpar filtros
               </Button>
