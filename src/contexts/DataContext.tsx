@@ -27,8 +27,6 @@ export interface ImportResult {
 
 interface DataStore {
   ocorrencias: Ocorrencia[];
-  hasMoreOcorrencias: boolean;
-  loadMoreOcorrencias: () => Promise<void>;
   loadOcorrenciaDetail: (id: string) => Promise<void>;
   equipes: Equipe[];
   tiposServico: TipoServico[];
@@ -75,7 +73,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { addLog } = useLog();
   const [ocorrencias, setOcorrencias] = useState<Ocorrencia[]>([]);
-  const [hasMoreOcorrencias, setHasMoreOcorrencias] = useState(true);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [tiposServico, setTiposServico] = useState<TipoServico[]>([]);
   const [servicos, setServicos] = useState<ServicoOcorrencia[]>([]);
@@ -86,7 +83,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ocorrenciaMateriais, setOcorrenciaMateriais] = useState<OcorrenciaMaterial[]>([]);
 
   // Refs to avoid stale closures without causing callback churn
-  const dbFetchOffset = useRef(0);
   const loadedDetailIds = useRef(new Set<string>());
   const ocorrenciasRef = useRef<Ocorrencia[]>([]);
   useEffect(() => { ocorrenciasRef.current = ocorrencias; }, [ocorrencias]);
@@ -114,14 +110,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      const [equipes, tiposServico, profiles, materials, ocorrenciaMateriais, firstPage] =
+      const [equipes, tiposServico, profiles, materials, ocorrenciaMateriais, ocorrencias] =
         await Promise.all([
           EquipesService.fetchEquipes(),
           TiposServicoService.fetchTiposServico(),
           ProfilesService.fetchProfiles(),
           MateriaisService.fetchMateriais(),
           MateriaisService.fetchOcorrenciaMateriais(),
-          OcorrenciasService.fetchOcorrenciasPaged(0),
+          OcorrenciasService.fetchOcorrencias(),
         ]);
 
       setEquipes(equipes);
@@ -129,27 +125,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setProfiles(profiles);
       setMaterials(materials);
       setOcorrenciaMateriais(ocorrenciaMateriais);
-      setOcorrencias(firstPage.data);
-      setHasMoreOcorrencias(firstPage.hasMore);
-      dbFetchOffset.current = firstPage.data.length;
+      setOcorrencias(ocorrencias);
     };
 
     void init();
-  }, []);
-
-  // ─── Paginação de ocorrências ───────────────────────────────────────────────
-
-  const loadMoreOcorrencias = useCallback(async () => {
-    const { data, hasMore } = await OcorrenciasService.fetchOcorrenciasPaged(dbFetchOffset.current);
-    if (data.length > 0) {
-      setOcorrencias(prev => {
-        const existingIds = new Set(prev.map(o => o.id));
-        const newOcs = data.filter(o => !existingIds.has(o.id));
-        return [...prev, ...newOcs];
-      });
-      dbFetchOffset.current += data.length;
-    }
-    setHasMoreOcorrencias(hasMore);
   }, []);
 
   // ─── Lazy loading de servicos + fotos por ocorrência ───────────────────────
@@ -734,7 +713,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ──────────────────────────────────────────────────────────────────────────
 
   const value = useMemo(() => ({
-    ocorrencias, hasMoreOcorrencias, loadMoreOcorrencias, loadOcorrenciaDetail,
+    ocorrencias, loadOcorrenciaDetail,
     equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
     materials, ocorrenciaMateriais,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,
@@ -745,7 +724,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addMaterial, updateMaterial, deleteMaterial,
     addOcorrenciaMaterial, removeOcorrenciaMaterial,
   }), [
-    ocorrencias, hasMoreOcorrencias, loadMoreOcorrencias, loadOcorrenciaDetail,
+    ocorrencias, loadOcorrenciaDetail,
     equipes, tiposServico, servicos, fotosServico, fotosFinais, profiles,
     materials, ocorrenciaMateriais,
     addOcorrencias, importOcorrencias, updateOcorrencia, addEquipe, updateEquipe, deleteEquipe,

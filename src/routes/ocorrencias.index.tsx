@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import {
   Search, FileText, SlidersHorizontal, Upload,
   CheckCircle, AlertCircle, MinusCircle, FileUp, X,
-  Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Loader2, Calendar,
+  Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Calendar,
   ArrowUpDown, ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -574,15 +574,12 @@ function OcorrenciasPage() {
   usePageTitle("Ocorrências");
   const { user, isAdmin, isSupervisor, canDelete, canCreate } = useAuth();
   const isAdminOrSupervisor = isAdmin || isSupervisor;
-  const { ocorrencias, equipes, profiles, vincularEquipe, designarOperador, deleteOcorrencia,
-    hasMoreOcorrencias, loadMoreOcorrencias } = useData();
-  const [loadingMore, setLoadingMore] = useState(false);
+  const { ocorrencias, equipes, profiles, vincularEquipe, designarOperador, deleteOcorrencia } = useData();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [equipeFilter, setEquipeFilter] = useState<string>("");
   const [operadorFilter, setOperadorFilter] = useState<string>("");
-  const [municipioFilter, setMunicipioFilter] = useState<string>("");
   const [statusViewFilter, setStatusViewFilter] = useState<"all" | "backlog" | "finalizadas">("all");
   const [periodoFilter, setPeriodoFilter] = useState<"all" | "hoje" | "7dias" | "mes" | "custom">("all");
   const [dataInicialFilter, setDataInicialFilter] = useState("");
@@ -613,12 +610,7 @@ function OcorrenciasPage() {
   );
   const operadorAtual = ocorrenciaAtual?.assignedUser;
 
-  const municipios = useMemo(
-    () => [...new Set(ocorrencias.map(o => o.municipio))].sort(),
-    [ocorrencias],
-  );
-
-  const hasFilters = !!(statusFilter || equipeFilter || municipioFilter || search || operadorFilter || periodoFilter !== "all");
+  const hasFilters = !!(statusFilter || equipeFilter || search || operadorFilter || periodoFilter !== "all");
 
   const filtered = useMemo(() => {
     let result = isAdminOrSupervisor
@@ -629,7 +621,6 @@ function OcorrenciasPage() {
     if (statusViewFilter === "backlog") result = result.filter(o => o.status === "PENDENTE" || o.status === "EM_ANDAMENTO");
     if (statusViewFilter === "finalizadas") result = result.filter(o => o.status === "FINALIZADA");
     if (equipeFilter) result = result.filter(o => o.equipe_id === equipeFilter);
-    if (municipioFilter) result = result.filter(o => o.municipio === municipioFilter);
     if (operadorFilter) result = result.filter(o => o.assigned_to === operadorFilter);
     if (periodoFilter !== "all") {
       const today = new Date();
@@ -683,12 +674,12 @@ function OcorrenciasPage() {
       });
     }
     return result;
-  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter, search, sortCol, sortDir]);
+  }, [ocorrencias, isAdminOrSupervisor, user?.equipe_id, statusFilter, statusViewFilter, equipeFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter, search, sortCol, sortDir]);
 
   const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
 
-  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, municipioFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter]);
+  useEffect(() => { setPage(0); }, [search, statusFilter, statusViewFilter, equipeFilter, operadorFilter, periodoFilter, dataInicialFilter, dataFinalFilter]);
 
   const paginatedFiltered = useMemo(
     () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
@@ -766,23 +757,12 @@ function OcorrenciasPage() {
                 </SelectContent>
               </Select>
             )}
-            <Select value={municipioFilter} onValueChange={(v) => setMunicipioFilter(v === 'all' ? '' : v)}>
-              <SelectTrigger className="flex-1 sm:flex-none sm:w-[155px] h-9 bg-background border-border/70">
-                <SelectValue placeholder="Município" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os municípios</SelectItem>
-                {municipios.map(m => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             {hasFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-9 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => { setSearch(''); setStatusFilter(''); setEquipeFilter(''); setMunicipioFilter(''); setPeriodoFilter('all'); setDataInicialFilter(''); setDataFinalFilter(''); }}
+                onClick={() => { setSearch(''); setStatusFilter(''); setEquipeFilter(''); setPeriodoFilter('all'); setDataInicialFilter(''); setDataFinalFilter(''); }}
               >
                 Limpar filtros
               </Button>
@@ -1053,27 +1033,6 @@ function OcorrenciasPage() {
           className="animate-fade-in-up"
         />
 
-        {/* Carregar mais do servidor */}
-        {hasMoreOcorrencias && (
-          <div className="flex justify-center animate-fade-in-up">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 h-9 font-medium text-muted-foreground hover:text-foreground"
-              disabled={loadingMore}
-              onClick={async () => {
-                setLoadingMore(true);
-                await loadMoreOcorrencias();
-                setLoadingMore(false);
-              }}
-            >
-              {loadingMore
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando...</>
-                : <><ChevronDown className="h-3.5 w-3.5" /> Carregar mais ocorrências</>
-              }
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Dialog de importação */}
