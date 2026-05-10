@@ -213,7 +213,21 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const MAX_IMPORT_SIZE = 10 * 1024 * 1024; // 10 MB
+
   const processFile = useCallback((file: File) => {
+    if (file.size > MAX_IMPORT_SIZE) {
+      alert(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). O limite é 10 MB.`);
+      return;
+    }
+
+    const allowedExts = new Set(['xlsx', 'xls', 'csv', 'txt']);
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!allowedExts.has(ext)) {
+      alert('Formato não suportado. Use .xlsx, .xls ou .csv.');
+      return;
+    }
+
     setFileName(file.name);
     setStep('upload');
     setImportResult(null);
@@ -222,7 +236,6 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
     const existingCabos = new Set(
       ocorrencias.map(o => o.cabo_primaria?.trim()).filter((c): c is string => !!c)
     );
-    const ext = file.name.split('.').pop()?.toLowerCase();
 
     const finish = (headers: string[], matrix: string[][]) => {
       const rows = rowsFromMatrix(headers, matrix, existingIds, existingCabos);
@@ -817,6 +830,7 @@ function OcorrenciasPage() {
                 placeholder="Buscar por ID, município..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                maxLength={100}
                 className="pl-9 h-9 bg-background border-border/70"
               />
             </div>

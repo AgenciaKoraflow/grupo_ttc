@@ -93,8 +93,14 @@ function UsuariosPage() {
 
   const roleHasEquipe = (role: string) => role === 'operador' || role === 'supervisor';
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   const handleCreateUser = async () => {
-    if (!formData.nome || !formData.email) return;
+    if (!formData.nome.trim() || !formData.email.trim()) return;
+    if (!isValidEmail(formData.email)) {
+      setCreateError('Email inválido. Use o formato usuario@dominio.com');
+      return;
+    }
     setIsCreating(true);
     setCreateError('');
     try {
@@ -125,6 +131,10 @@ function UsuariosPage() {
   const handleEditUser = () => {
     const user = profiles.find(p => p.id === selectedUserId);
     if (!user) return;
+    if (formData.email.trim() && !isValidEmail(formData.email)) {
+      alert('Email inválido. Use o formato usuario@dominio.com');
+      return;
+    }
     updateProfile(selectedUserId, {
       nome: formData.nome,
       email: formData.email,
