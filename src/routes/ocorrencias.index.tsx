@@ -14,7 +14,7 @@ import {
   Search, FileText, SlidersHorizontal, Upload,
   CheckCircle, AlertCircle, MinusCircle, FileUp, X,
   Plus, RefreshCw, Users, Hand, Trash2, ChevronDown, Calendar,
-  ArrowUpDown, ChevronUp,
+  ArrowUpDown, ChevronUp, XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OcorrenciaStatus } from "@/types";
@@ -69,11 +69,16 @@ interface ParsedRow {
   nome_at: string;
   gerente_icomon: string;
   operador_id: string;
-  rowStatus: 'ok' | 'duplicate' | 'error';
+  rowStatus: 'ok' | 'duplicate' | 'cabo_duplicate' | 'error';
   message: string;
 }
 
-function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<string>): ParsedRow[] {
+function rowsFromMatrix(
+  headers: string[],
+  matrix: string[][],
+  existingIds: Set<string>,
+  existingCabos: Set<string>,
+): ParsedRow[] {
   const normalizedHeaders = headers.map(h => normalize(h));
   const headerMap: Record<number, string> = {};
 
@@ -87,6 +92,7 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
   });
 
   const seenIds = new Set<string>();
+  const seenCabos = new Set<string>();
   return matrix.map((cols, i) => {
     const row: Record<string, string> = {};
     Object.entries(headerMap).forEach(([idx, field]) => {
@@ -94,7 +100,8 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
     });
 
     const id_oc = row.id_ocorrencia || '';
-    let rowStatus: 'ok' | 'duplicate' | 'error' = 'ok';
+    const cabo = row.cabo_primaria?.trim() || '';
+    let rowStatus: 'ok' | 'duplicate' | 'cabo_duplicate' | 'error' = 'ok';
     let message = '';
 
     if (!id_oc) {
@@ -103,8 +110,12 @@ function rowsFromMatrix(headers: string[], matrix: string[][], existingIds: Set<
     } else if (existingIds.has(id_oc) || seenIds.has(id_oc)) {
       rowStatus = 'duplicate';
       message = 'ID duplicado';
+    } else if (cabo && (existingCabos.has(cabo) || seenCabos.has(cabo))) {
+      rowStatus = 'cabo_duplicate';
+      message = 'Cabo/Primária já cadastrado';
     } else {
       seenIds.add(id_oc);
+      if (cabo) seenCabos.add(cabo);
     }
 
     return {
@@ -208,10 +219,13 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
     setImportResult(null);
 
     const existingIds = new Set(ocorrencias.map(o => o.id_ocorrencia));
+    const existingCabos = new Set(
+      ocorrencias.map(o => o.cabo_primaria?.trim()).filter((c): c is string => !!c)
+    );
     const ext = file.name.split('.').pop()?.toLowerCase();
 
     const finish = (headers: string[], matrix: string[][]) => {
-      const rows = rowsFromMatrix(headers, matrix, existingIds);
+      const rows = rowsFromMatrix(headers, matrix, existingIds, existingCabos);
       setParsed(rows);
       setStep('review');
     };
@@ -252,7 +266,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
   }, [processFile]);
 
   const handleImport = () => {
-    const allRows = parsed.filter(r => r.rowStatus !== 'error');
+    const allRows = parsed.filter(r => r.rowStatus !== 'error' && r.rowStatus !== 'cabo_duplicate');
     const result = importOcorrencias(allRows.map(r => ({
       id_ocorrencia: r.id_ocorrencia,
       municipio: r.municipio,
@@ -271,6 +285,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
 
   const newCount = parsed.filter(r => r.rowStatus === 'ok').length;
   const dupCount = parsed.filter(r => r.rowStatus === 'duplicate').length;
+  const caboCount = parsed.filter(r => r.rowStatus === 'cabo_duplicate').length;
   const errCount = parsed.filter(r => r.rowStatus === 'error').length;
   const hasDups = dupCount > 0;
 
@@ -355,7 +370,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
               </div>
 
               {/* Sumário */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl p-3.5 flex items-center gap-3"
                   style={{ background: 'oklch(0.56 0.185 150 / 0.10)', border: '1px solid oklch(0.56 0.185 150 / 0.25)' }}>
                   <CheckCircle className="h-5 w-5 shrink-0" style={{ color: 'oklch(0.56 0.185 150)' }} />
@@ -369,7 +384,15 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                   <MinusCircle className="h-5 w-5 shrink-0" style={{ color: 'oklch(0.40 0.12 70)' }} />
                   <div>
                     <p className="text-lg font-bold text-foreground leading-none">{dupCount}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">duplicatas</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">ID duplicado</p>
+                  </div>
+                </div>
+                <div className="rounded-xl p-3.5 flex items-center gap-3"
+                  style={{ background: 'oklch(0.60 0.22 350 / 0.08)', border: '1px solid oklch(0.60 0.22 350 / 0.25)' }}>
+                  <XCircle className="h-5 w-5 shrink-0" style={{ color: 'oklch(0.50 0.22 350)' }} />
+                  <div>
+                    <p className="text-lg font-bold text-foreground leading-none">{caboCount}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">cabo duplicado</p>
                   </div>
                 </div>
                 <div className="rounded-xl p-3.5 flex items-center gap-3"
@@ -381,6 +404,19 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                   </div>
                 </div>
               </div>
+
+              {/* Aviso de cabo/primária duplicado — sempre bloqueados */}
+              {caboCount > 0 && (
+                <div className="flex items-start gap-3 rounded-xl px-4 py-3"
+                  style={{ background: 'oklch(0.60 0.22 350 / 0.07)', border: '1px solid oklch(0.60 0.22 350 / 0.25)' }}>
+                  <XCircle className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'oklch(0.50 0.22 350)' }} />
+                  <p className="text-xs leading-relaxed" style={{ color: 'oklch(0.38 0.18 350)' }}>
+                    <span className="font-semibold">{caboCount} registro{caboCount > 1 ? 's' : ''} bloqueado{caboCount > 1 ? 's' : ''}:</span>{' '}
+                    Cabo/Primária já cadastrado no sistema. Esses registros não serão importados.
+                    Corrija o Cabo/Primária na planilha para incluí-los.
+                  </p>
+                </div>
+              )}
 
               {/* Seletor de modo — só aparece quando tem duplicatas */}
               {hasDups && (
@@ -444,7 +480,9 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                           ? 'oklch(0.50 0.235 27 / 0.06)'
                           : row.rowStatus === 'duplicate'
                             ? 'oklch(0.80 0.165 70 / 0.06)'
-                            : undefined,
+                            : row.rowStatus === 'cabo_duplicate'
+                              ? 'oklch(0.60 0.22 350 / 0.05)'
+                              : undefined,
                       }}>
                       <span className="text-muted-foreground">{row.line}</span>
                       <span className="font-medium text-foreground truncate">{row.id_ocorrencia || '—'}</span>
@@ -461,7 +499,12 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                         )}
                         {row.rowStatus === 'duplicate' && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                            style={{ background: 'oklch(0.80 0.165 70 / 0.18)', color: 'oklch(0.40 0.12 70)' }}>Duplicado</span>
+                            style={{ background: 'oklch(0.80 0.165 70 / 0.18)', color: 'oklch(0.40 0.12 70)' }}>ID dup.</span>
+                        )}
+                        {row.rowStatus === 'cabo_duplicate' && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                            title={row.message}
+                            style={{ background: 'oklch(0.60 0.22 350 / 0.15)', color: 'oklch(0.45 0.22 350)' }}>Cabo dup.</span>
                         )}
                         {row.rowStatus === 'error' && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -494,6 +537,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                   { label: 'Novos importados', value: importResult.imported, color: 'oklch(0.56 0.185 150)', bg: 'oklch(0.56 0.185 150 / 0.10)', border: 'oklch(0.56 0.185 150 / 0.25)' },
                   { label: 'Atualizados', value: importResult.replaced, color: 'oklch(0.38 0.14 235)', bg: 'oklch(0.55 0.18 235 / 0.10)', border: 'oklch(0.55 0.18 235 / 0.25)' },
                   { label: 'Ignorados', value: importResult.skipped, color: 'oklch(0.46 0.028 252)', bg: 'oklch(0.935 0.014 245)', border: 'oklch(0.868 0.014 245)' },
+                  { label: 'Cabo/Primária dup.', value: caboCount, color: 'oklch(0.50 0.22 350)', bg: 'oklch(0.60 0.22 350 / 0.07)', border: 'oklch(0.60 0.22 350 / 0.25)' },
                   { label: 'Erros (ID vazio)', value: importResult.errors, color: 'oklch(0.50 0.235 27)', bg: 'oklch(0.50 0.235 27 / 0.08)', border: 'oklch(0.50 0.235 27 / 0.20)' },
                 ].map(({ label, value, color, bg, border }) => (
                   <div key={label} className="rounded-xl p-3.5" style={{ background: bg, border: `1px solid ${border}` }}>
