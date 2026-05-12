@@ -575,7 +575,7 @@ function OcorrenciaDetailPage() {
             />
             <InfoItem
               label="Gerente"
-              value={oc.operador_id || "—"}
+              value={oc.gerente_icomon || "—"}
               icon={Users}
             />
             <div className="space-y-1">
