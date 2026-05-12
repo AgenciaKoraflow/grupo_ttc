@@ -354,29 +354,6 @@ function RelatorioPage() {
         </div>
       </div>
 
-      <div
-        style={{
-          background: "white",
-          borderBottom: "2px solid #cbd5e1",
-          padding: "12px 32px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            color: "#475569",
-          }}
-        >
-          Status da Ocorrência
-        </span>
-        <StatusBadge status={oc.status} />
-      </div>
     </>
   );
 

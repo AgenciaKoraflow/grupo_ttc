@@ -93,8 +93,8 @@ function compressImage(file: File): Promise<File> {
           resolve(
             blob
               ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
-                  type: "image/jpeg",
-                })
+                type: "image/jpeg",
+              })
               : file,
           ),
         "image/jpeg",
@@ -450,16 +450,16 @@ function OcorrenciaDetailPage() {
   const finalizarValidation =
     ocServicos.length > 0
       ? ocServicos.map((sv) => {
-          const fotos = fotosServico.filter((f) => f.servico_id === sv.id);
-          const hasAntes = fotos.some((f) => f.tipo_foto === "antes");
-          const hasDepois = fotos.some((f) => f.tipo_foto === "depois");
-          return {
-            servico: sv,
-            hasAntes,
-            hasDepois,
-            isComplete: hasAntes && hasDepois,
-          };
-        })
+        const fotos = fotosServico.filter((f) => f.servico_id === sv.id);
+        const hasAntes = fotos.some((f) => f.tipo_foto === "antes");
+        const hasDepois = fotos.some((f) => f.tipo_foto === "depois");
+        return {
+          servico: sv,
+          hasAntes,
+          hasDepois,
+          isComplete: hasAntes && hasDepois,
+        };
+      })
       : [];
 
   const canFinalizar =
@@ -574,7 +574,7 @@ function OcorrenciaDetailPage() {
               icon={Building}
             />
             <InfoItem
-              label="Gerente Icomon"
+              label="Gerente"
               value={oc.operador_id || "—"}
               icon={Users}
             />
@@ -835,24 +835,24 @@ function OcorrenciaDetailPage() {
                                   ))}
                                   {pendingPreview?.key ===
                                     `${sv.id}-${tipo}` && (
-                                    <div
-                                      className="relative h-20 w-20"
-                                      role="status"
-                                      aria-label="Enviando foto..."
-                                    >
-                                      <img
-                                        src={pendingPreview.url}
-                                        alt="Foto sendo enviada"
-                                        className="h-20 w-20 rounded-xl object-cover border border-border/60 opacity-50"
-                                      />
-                                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/20">
-                                        <div
-                                          className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin"
-                                          aria-hidden="true"
+                                      <div
+                                        className="relative h-20 w-20"
+                                        role="status"
+                                        aria-label="Enviando foto..."
+                                      >
+                                        <img
+                                          src={pendingPreview.url}
+                                          alt="Foto sendo enviada"
+                                          className="h-20 w-20 rounded-xl object-cover border border-border/60 opacity-50"
                                         />
+                                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/20">
+                                          <div
+                                            className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin"
+                                            aria-hidden="true"
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
                                   {canEditOcorrencia &&
                                     !isFinalizada &&
                                     fotos.length < 1 && (
@@ -907,65 +907,65 @@ function OcorrenciaDetailPage() {
           )}
           {canEditOcorrencia && !isFinalizada && (
             <div className="flex justify-end">
-            <Dialog
-              open={showServicoDialog}
-              onOpenChange={setShowServicoDialog}
-            >
-              <DialogTrigger asChild>
-                <Button
-                  size="sm"
-                  className="gap-1.5 h-9 font-semibold"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
-                    boxShadow: "0 4px 12px oklch(0.50 0.225 255 / 0.35)",
-                  }}
-                >
-                  <Plus className="h-4 w-4" /> Adicionar Serviço
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md max-h-[70vh] flex flex-col">
-                <DialogHeader>
-                  <DialogTitle>Novo Serviço</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-2 overflow-y-auto flex-1">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Tipo de Serviço
-                    </Label>
-                    <Select value={novoTipoId} onValueChange={setNovoTipoId}>
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-40 w-full">
-                        {tiposServico
-                          .filter((t) => t.ativo)
-                          .map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.nome}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancelar</Button>
-                  </DialogClose>
+              <Dialog
+                open={showServicoDialog}
+                onOpenChange={setShowServicoDialog}
+              >
+                <DialogTrigger asChild>
                   <Button
-                    onClick={handleAddServico}
-                    disabled={!novoTipoId}
+                    size="sm"
+                    className="gap-1.5 h-9 font-semibold"
                     style={{
                       background:
                         "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
+                      boxShadow: "0 4px 12px oklch(0.50 0.225 255 / 0.35)",
                     }}
                   >
-                    Adicionar
+                    <Plus className="h-4 w-4" /> Adicionar Serviço
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md max-h-[70vh] flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle>Novo Serviço</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2 overflow-y-auto flex-1">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Tipo de Serviço
+                      </Label>
+                      <Select value={novoTipoId} onValueChange={setNovoTipoId}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-40 w-full">
+                          {tiposServico
+                            .filter((t) => t.ativo)
+                            .map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.nome}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancelar</Button>
+                    </DialogClose>
+                    <Button
+                      onClick={handleAddServico}
+                      disabled={!novoTipoId}
+                      style={{
+                        background:
+                          "linear-gradient(135deg, oklch(0.50 0.225 255), oklch(0.44 0.245 272))",
+                      }}
+                    >
+                      Adicionar
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>
@@ -1024,9 +1024,9 @@ function OcorrenciaDetailPage() {
                         {Number(om.quantity) % 1 === 0
                           ? Number(om.quantity).toLocaleString("pt-BR")
                           : Number(om.quantity).toLocaleString("pt-BR", {
-                              minimumFractionDigits: 1,
-                              maximumFractionDigits: 3,
-                            })}
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 3,
+                          })}
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground">
                         {om.material?.unit ?? "—"}
@@ -1359,13 +1359,13 @@ function OcorrenciaDetailPage() {
               style={
                 canFinalizar
                   ? {
-                      background:
-                        "linear-gradient(135deg, oklch(0.56 0.185 150), oklch(0.50 0.175 155))",
-                      boxShadow: "0 4px 12px oklch(0.56 0.185 150 / 0.35)",
-                    }
+                    background:
+                      "linear-gradient(135deg, oklch(0.56 0.185 150), oklch(0.50 0.175 155))",
+                    boxShadow: "0 4px 12px oklch(0.56 0.185 150 / 0.35)",
+                  }
                   : {
-                      background: "oklch(0.80 0.02 0 / 0.5)",
-                    }
+                    background: "oklch(0.80 0.02 0 / 0.5)",
+                  }
               }
             >
               <CheckCircle className="h-5 w-5" /> Finalizar Ocorrência
