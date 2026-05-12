@@ -402,7 +402,7 @@ function RelatorioPage() {
               </div>
             )}
           </div>
-          <div
+          {/* <div
             style={{
               fontSize: 10,
               border: "1px solid #e2e8f0",
@@ -412,7 +412,7 @@ function RelatorioPage() {
             }}
           >
             {sv.status_item}
-          </div>
+          </div> */}
         </div>
 
         <div
@@ -633,9 +633,9 @@ function RelatorioPage() {
                             </p>
                           )}
                         </div>
-                        <Badge variant="outline" className="text-xs">
+                        {/* <Badge variant="outline" className="text-xs">
                           {sv.status_item}
-                        </Badge>
+                        </Badge> */}
                       </div>
 
                       {/* Antes/Depois lado a lado */}
