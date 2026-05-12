@@ -324,7 +324,7 @@ function RelatorioPage() {
         >
           {(
             [
-              ["EMPRESA", "TTC"],
+              ["GERENTE", oc.gerente_icomon || "—"],
               ["ID PRIMÁRIA", oc.id_ocorrencia],
               ["MUNICÍPIO", oc.municipio],
               ["AT", oc.at || "—"],
@@ -556,7 +556,7 @@ function RelatorioPage() {
             {/* Informações gerais */}
             <div className="bg-slate-50 border-b-4 border-slate-900 p-8">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <InfoField icon={Building} label="EMPRESA" value="TTC" />
+                <InfoField icon={Users} label="GERENTE" value={oc.gerente_icomon || "—"} />
                 <InfoField
                   icon={Tag}
                   label="ID PRIMÁRIA"

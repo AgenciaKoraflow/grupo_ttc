@@ -8,7 +8,9 @@
       "Bash(bunx tsc *)",
       "Bash(supabase --version)",
       "Bash(grep -v \"^$\")",
-      "Bash(grep -rn \"\\\\.rpc\\(\\\\|\\\\.from\\(.*\\\\${\\\\|template\\\\|eval\\(\\\\|new Function\\(\\\\|dangerouslySetInnerHTML\\\\|innerHTML\\\\s*=\" /home/joaosousa/projects/KORAFLOW/grupo-ttc/src/)"
+      "Bash(grep -rn \"\\\\.rpc\\(\\\\|\\\\.from\\(.*\\\\${\\\\|template\\\\|eval\\(\\\\|new Function\\(\\\\|dangerouslySetInnerHTML\\\\|innerHTML\\\\s*=\" /home/joaosousa/projects/KORAFLOW/grupo-ttc/src/)",
+      "Bash(grep -n \"Users\" \"/home/joaosousa/projects/KORAFLOW/grupo-ttc/src/routes/ocorrencias.\\\\$id.relatorio.tsx\")",
+      "Read(//home/joaosousa/projects/KORAFLOW/grupo-ttc/src/routes/**)"
     ]
   }
 }
