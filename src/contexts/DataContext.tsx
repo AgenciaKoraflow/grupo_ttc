@@ -109,6 +109,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ─── Initial load (sem servicos/fotos — lazy) ──────────────────────────────
 
   useEffect(() => {
+    if (!user) {
+      setOcorrencias([]);
+      setEquipes([]);
+      setTiposServico([]);
+      setProfiles([]);
+      setMaterials([]);
+      setOcorrenciaMateriais([]);
+      loadedDetailIds.current.clear();
+      return;
+    }
+
     const init = async () => {
       const [equipes, tiposServico, profiles, materials, ocorrenciaMateriais, ocorrencias] =
         await Promise.all([
@@ -129,7 +140,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     void init();
-  }, []);
+  }, [user?.id]);
 
   // ─── Lazy loading de servicos + fotos por ocorrência ───────────────────────
 
